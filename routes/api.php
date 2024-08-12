@@ -8,10 +8,27 @@ use App\Http\Middleware\ApiAuth;
 use App\Http\Controllers\AdminController;
 
 URL::forceScheme('https');
+
 Route::get('/clear', function () {
     Artisan::call('route:clear');
+    Artisan::call('config:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('view:clear');
     Artisan::call('optimize:clear');
-    return 'Application cache cleared';
+    $laravelVersion = app()->version();
+    $phpVersion = phpversion();
+    return "✔️ Application cache and optimizations have been cleared successfully.<br><br>" .
+        "Laravel Version: $laravelVersion, PHP Version: $phpVersion";
+});
+
+Route::get('/composer-update', function () {
+    $startTime = microtime(true);
+    $composerOutput = shell_exec('composer update');
+    $endTime = microtime(true);
+    $executionTime = $endTime - $startTime;
+    return "✔️ Composer update has been completed.<br><br>" .
+        "Composer Update Output:<br>" . nl2br($composerOutput) . "<br><br>" .
+        "⏱️ Total Execution Time: " . round($executionTime, 2) . " seconds.";
 });
 
 Route::group(['prefix' => 'admin'], function () {
@@ -22,7 +39,20 @@ Route::group(['prefix' => 'admin'], function () {
 
     Route::post('/updateProfile', [AdminController::class, 'updateProfile']);
     Route::post('/changePassword', [AdminController::class, 'changePassword']);
+
+    Route::get('/getStaticContent', [AdminController::class, 'getStaticContent']);
+    Route::post('/updateStaticContent', [AdminController::class, 'updateStaticContent']);
+
+    Route::get('/getDashboardData', [AdminController::class, 'getDashboardData']);
+
+    Route::get('/getAllUsers', [AdminController::class, 'getAllUsers']);
+    Route::get('/getUserById/{id?}', [AdminController::class, 'getUserById']);
+
+    Route::get('/getAllCategories', [AdminController::class, 'getAllCategories']);
+    Route::get('/getCategoryById/{id?}', [AdminController::class, 'getCategoryById']);
+    Route::post('/addCategory', [AdminController::class, 'addCategory']);
+    Route::post('/updateCategory', [AdminController::class, 'updateCategory']);
+    Route::post('/deleteCategory', [AdminController::class, 'deleteCategory']);
 });
 
-Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
-});
+Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {});

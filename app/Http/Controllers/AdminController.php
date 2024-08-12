@@ -32,10 +32,6 @@ class AdminController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid password!']);
             }
 
-            if (is_object($user)) {
-                unset($user->password);
-            }
-
             return response()->json(['result' => 1, 'msg' => 'Logged in successfully', 'data' => $user]);
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -71,9 +67,6 @@ class AdminController extends Controller
                 // sendMail($maildata);
                 update('admins', 'id', $user->id, ['otp' => $otp]);
                 $user = AdminModel::getAdminById($user->id);
-                if (is_object($user)) {
-                    unset($user->password);
-                }
                 return response()->json(['result' => 1, 'msg' => 'Verification OTP has been sent to your email.', 'data' => $user]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Account does not exist with this email!']);
@@ -112,9 +105,6 @@ class AdminController extends Controller
                 // sendMail($maildata);
                 update('admins', 'id', $user->id, ['otp' => $otp]);
                 $user = AdminModel::getAdminById($user->id);
-                if (is_object($user)) {
-                    unset($user->password);
-                }
                 return response()->json(['result' => 1, 'msg' => 'Verification OTP has been resent to your email.', 'data' => $user]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No active account exist with this id!']);
@@ -182,22 +172,31 @@ class AdminController extends Controller
 
             $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/uploads/admin_profile') : $user->profile_image;
 
-            $data = [
-                'first_name' => !empty($request->has('first_name')) ? $request->input('first_name') : null,
-                'last_name' => !empty($request->has('last_name')) ? $request->input('last_name') : null,
-                'phone' => !empty($request->has('phone')) ? $request->input('phone') : null,
-                'address' => !empty($request->has('address')) ? $request->input('address') : null,
-                'logo' => !empty($logo) ? $logo : null,
-                'favicon' => !empty($favicon) ? $favicon : null,
-                'profile_image' => !empty($profile_image) ? $profile_image : null
-            ];
-
-            $result = AdminModel::updateProfile($user_id, $data);
-
-            if ($result) {
-                return response()->json(['result' => '1', 'msg' => 'Profile updated successfully', 'data' => $data]);
+            if ($request->has('first_name') || $request->has('last_name') || $request->has('phone') || $request->has('address')) {
+                $data = [
+                    'logo' => !empty($logo) ? $logo : null,
+                    'favicon' => !empty($favicon) ? $favicon : null,
+                    'profile_image' => !empty($profile_image) ? $profile_image : null,
+                    'updated_at' => now()->format('Y-m-d H:i:s')
+                ];
+                if ($request->has('first_name')) {
+                    $data['first_name'] = $request->input('first_name');
+                }
+                if ($request->has('last_name')) {
+                    $data['last_name'] = $request->input('last_name');
+                }
+                if ($request->has('phone')) {
+                    $data['phone'] = $request->input('phone');
+                }
+                if ($request->has('address')) {
+                    $data['address'] = $request->input('address');
+                }
+                $result = AdminModel::updateProfile($user_id, $data);
+                if ($result) {
+                    return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $result]);
+                }
             } else {
-                return response()->json(['result' => '-1', 'msg' => 'No changes were found!']);
+                return response()->json(['result' => -1, 'msg' => 'No changes were found!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -241,6 +240,280 @@ class AdminController extends Controller
                 }
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Invalid ID!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getStaticContent(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'content_type' => ['required', 'in:Terms,Privacy,About']
+            ], [
+                'required' => 'The :attribute field is required',
+                'in' => 'The :attribute field must be either Terms, Privacy or About'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $content_type = $request->query('content_type');
+
+            $result = AdminModel::getStaticContent($content_type);
+
+            if ($result) {
+                return response()->json(['result' => 1, 'msg' => "$content_type content fetched successfully", 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No content found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function updateStaticContent(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'content_type' => ['required', 'in:Terms,Privacy,About']
+            ], [
+                'required' => 'The :attribute field is required',
+                'in' => 'The :attribute field must be either Terms, Privacy or About'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $content_type = $request->input('content_type');
+
+            if ($request->has('title') || $request->has('description')) {
+                $data = [
+                    'updated_at' => now()->format('Y-m-d H:i:s')
+                ];
+                if ($request->has('title')) {
+                    $data['title'] = $request->input('title');
+                }
+                if ($request->has('description')) {
+                    $data['description'] = $request->input('description');
+                }
+                $result = AdminModel::updateStaticContent($content_type, $data);
+                if ($result) {
+                    return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $result]);
+                }
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No changes were found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getDashboardData()
+    {
+        try {
+            $result = [
+                'total_users' => "200k",
+                'total_courses' => "25",
+                'earnings' => "$75k",
+                'top_category' => "Pharmaceutical",
+                'top_course' => "pharmaceutics",
+                'active_users' => "85%",
+                'new_users' => "15%",
+                'revenue' => null
+            ];
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Dashboard data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllUsers(Request $request)
+    {
+        try {
+            $per_page = $request->query('per_page') ?? 10;
+            $result = AdminModel::getAllUsers($per_page);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Users data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getUserById($id = null)
+    {
+        try {
+            if (empty($id)) {
+                return response()->json(['result' => 0, 'errors' => 'Id is required!']);
+            }
+
+            $result = AdminModel::getUserById($id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'User data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllCategories(Request $request)
+    {
+        try {
+            $per_page = $request->query('per_page') ?? 10;
+            $result = AdminModel::getAllCategories($per_page);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Categories data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getCategoryById($id = null)
+    {
+        try {
+            if (empty($id)) {
+                return response()->json(['result' => 0, 'errors' => 'Id is required!']);
+            }
+
+            $result = AdminModel::getCategoryById($id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Category data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function addCategory(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'category_name' => 'required',
+                'description' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $category = select('course_categories', 'category_name', ['category_name' => $request->input('category_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($category)) {
+                return response()->json(['result' => -1, 'msg' => 'The category name has already been taken!']);
+            }
+
+            if ($request->hasfile('category_image')) {
+                $category_image = singleUpload($request, 'category_image', 'admin');
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Upload category image!']);
+            }
+
+            $data = [
+                'category_name' => $request->input('category_name'),
+                'description' => $request->input('description'),
+                'category_image' => !empty($category_image) ? $category_image : null
+            ];
+
+            $result = AdminModel::addCategory($data);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Category added successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function updateCategory(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'category_id' => 'required',
+                'category_name' => 'required',
+                'description' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $category_id = $request->input('category_id');
+            $category = select('course_categories', '*', ['id' => $category_id])->first();
+            if (empty($category)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            if ($request->hasfile('category_image')) {
+                $category_image = singleUpload($request, 'category_image', 'admin');
+            } else {
+                $category_image = $category->category_image;
+            }
+
+            $data = [
+                'category_name' => $request->input('category_name'),
+                'description' => $request->input('description'),
+                'category_image' => !empty($category_image) ? $category_image : null
+            ];
+
+            $result = AdminModel::updateCategory($category_id, $data);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Category updated successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function deleteCategory(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'category_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $category_id = $request->input('category_id');
+            $category = select('course_categories', '*', ['id' => $category_id])->first();
+            if (empty($category)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            $result = AdminModel::deleteCategory($category_id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Category deleted successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Already deleted!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 function generateOtp()
@@ -128,7 +129,7 @@ function singleUpload($request, $file_name, $path)
         $file = $request->file($file_name);
         $name = time() . '.' . $file->extension();
         sleep(1);
-        $file->move(base_path('public/') . $path, $name);
+        $file->move(base_path('uploads/') . $path, $name);
         return $name;
     } else {
         return false;
