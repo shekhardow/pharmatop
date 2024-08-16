@@ -53,6 +53,12 @@ Route::group(['prefix' => 'admin'], function () {
     Route::post('/addCategory', [AdminController::class, 'addCategory']);
     Route::post('/updateCategory', [AdminController::class, 'updateCategory']);
     Route::post('/deleteCategory', [AdminController::class, 'deleteCategory']);
+
+    Route::get('/getAllCourses', [AdminController::class, 'getAllCourses']);
+    Route::get('/getCourseById/{id?}', [AdminController::class, 'getCourseById']);
+    Route::post('/addCourse', [AdminController::class, 'addCourse']);
+    Route::post('/updateCourse', [AdminController::class, 'updateCourse']);
+    Route::post('/deleteCourse', [AdminController::class, 'deleteCourse']);
 });
 
 Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {});

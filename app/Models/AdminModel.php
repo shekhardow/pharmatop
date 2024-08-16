@@ -88,10 +88,17 @@ class AdminModel extends Model
         return $result;
     }
 
-    public static function getAllCategories($per_page)
+    public static function getAllCategories($per_page, $search = null)
     {
-        $result = DB::transaction(function () use ($per_page) {
-            return DB::table('course_categories')->select('*')->where('status', '!=', 'Deleted')->paginate($per_page);
+        $result = DB::transaction(function () use ($per_page, $search) {
+            $query = DB::table('course_categories')->select('*')->where('status', '!=', 'Deleted');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('category_name', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
+            return $query->paginate($per_page);
         });
         return $result;
     }
@@ -124,6 +131,58 @@ class AdminModel extends Model
     {
         $result = DB::transaction(function () use ($id) {
             return DB::table('course_categories')->where('id', $id)->update(['status' => 'Deleted']);
+        });
+        return $result;
+    }
+
+    public static function getAllCourses($per_page, $search = null)
+    {
+        $result = DB::transaction(function () use ($per_page, $search) {
+            $query = DB::table('courses')->select('*')->where('status', '!=', 'Deleted');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('course_name', 'like', "%{$search}%")
+                        ->orWhere('language', 'like', "%{$search}%")
+                        ->orWhere('price', 'like', "%{$search}%")
+                        ->orWhere('total_sold', 'like', "%{$search}%")
+                        ->orWhere('skills', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('duration', 'like', "%{$search}%");
+                });
+            }
+            return $query->paginate($per_page);
+        });
+        return $result;
+    }
+
+    public static function getCourseById($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            return DB::table('courses')->select('*')->where('id', $id)->where('status', '!=', 'Deleted')->first();
+        });
+        return $result;
+    }
+
+    public static function addCourse($data)
+    {
+        $result = DB::transaction(function () use ($data) {
+            return DB::table('courses')->insert($data);
+        });
+        return $result;
+    }
+
+    public static function updateCourse($id, $data)
+    {
+        $result = DB::transaction(function () use ($id, $data) {
+            return DB::table('courses')->where('id', $id)->update($data);
+        });
+        return $result;
+    }
+
+    public static function deleteCourse($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            return DB::table('courses')->where('id', $id)->update(['status' => 'Deleted']);
         });
         return $result;
     }

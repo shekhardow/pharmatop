@@ -373,7 +373,8 @@ class AdminController extends Controller
     {
         try {
             $per_page = $request->query('per_page') ?? 10;
-            $result = AdminModel::getAllCategories($per_page);
+            $search = $request->query('search') ?? null;
+            $result = AdminModel::getAllCategories($per_page, $search);
 
             if (!empty($result)) {
                 return response()->json(['result' => 1, 'msg' => 'Categories data fetched successfully', 'data' => $result]);
@@ -466,6 +467,11 @@ class AdminController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
             }
 
+            $category = select('course_categories', 'category_name', ['category_name' => $request->input('category_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($category)) {
+                return response()->json(['result' => -1, 'msg' => 'The category name has already been taken!']);
+            }
+
             if ($request->hasfile('category_image')) {
                 $category_image = singleUpload($request, 'category_image', 'admin');
             } else {
@@ -512,6 +518,177 @@ class AdminController extends Controller
 
             if (!empty($result)) {
                 return response()->json(['result' => 1, 'msg' => 'Category deleted successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Already deleted!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllCourses(Request $request)
+    {
+        try {
+            $per_page = $request->query('per_page') ?? 10;
+            $search = $request->query('search') ?? null;
+            $result = AdminModel::getAllCourses($per_page, $search);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getCourseById($id = null)
+    {
+        try {
+            if (empty($id)) {
+                return response()->json(['result' => 0, 'errors' => 'Id is required!']);
+            }
+
+            $result = AdminModel::getCourseById($id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Course data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function addCourse(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'category_id' => 'required',
+                'course_name' => 'required',
+                'price' => 'required',
+                'skills' => 'required',
+                'description' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $course = select('courses', 'course_name', ['course_name' => $request->input('course_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($course)) {
+                return response()->json(['result' => -1, 'msg' => 'The course name has already been taken!']);
+            }
+
+            if ($request->hasfile('course_image')) {
+                $course_image = singleUpload($request, 'course_image', 'admin');
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Upload course image!']);
+            }
+
+            $data = [
+                'category_id' => !empty($request->input('category_id')) ? $request->input('category_id') : null,
+                'course_name' => !empty($request->input('course_name')) ? $request->input('course_name') : null,
+                'language' => !empty($request->input('language')) ? $request->input('language') : null,
+                'price' => !empty($request->input('price')) ? $request->input('price') : null,
+                'skills' => !empty($request->input('skills')) ? json_encode($request->input('skills')) : null,
+                'description' => !empty($request->input('description')) ? $request->input('description') : null,
+                'course_image' => !empty($course_image) ? $course_image : null
+            ];
+
+            $result = AdminModel::addCourse($data);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Course added successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function updateCourse(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'course_id' => 'required',
+                'category_id' => 'required',
+                'course_name' => 'required',
+                'price' => 'required',
+                'skills' => 'required',
+                'description' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $course_id = $request->input('course_id');
+            $course = select('courses', '*', ['id' => $course_id])->first();
+            if (empty($course)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            $course = select('courses', 'course_name', ['course_name' => $request->input('course_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($course)) {
+                return response()->json(['result' => -1, 'msg' => 'The course name has already been taken!']);
+            }
+
+            if ($request->hasfile('course_image')) {
+                $course_image = singleUpload($request, 'course_image', 'admin');
+            } else {
+                $course_image = $course->course_image;
+            }
+
+            $data = [
+                'category_id' => !empty($request->input('category_id')) ? $request->input('category_id') : null,
+                'course_name' => !empty($request->input('course_name')) ? $request->input('course_name') : null,
+                'language' => !empty($request->input('language')) ? $request->input('language') : null,
+                'price' => !empty($request->input('price')) ? $request->input('price') : null,
+                'skills' => !empty($request->input('skills')) ? json_encode($request->input('skills')) : null,
+                'description' => !empty($request->input('description')) ? $request->input('description') : null,
+                'course_image' => !empty($course_image) ? $course_image : null
+            ];
+
+            $result = AdminModel::updateCourse($course_id, $data);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Course updated successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function deleteCourse(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'course_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $course_id = $request->input('course_id');
+            $course = select('courses', '*', ['id' => $course_id])->first();
+            if (empty($course)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            $result = AdminModel::deleteCourse($course_id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Course deleted successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Already deleted!']);
             }
