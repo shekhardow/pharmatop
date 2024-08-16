@@ -418,8 +418,8 @@ class AdminController extends Controller
                 return response()->json(['result' => 0, 'errors' => $validator->errors()]);
             }
 
-            $category = select('course_categories', 'category_name', ['category_name' => $request->input('category_name'), ['status', '!=', 'Deleted']])->first();
-            if (!empty($category)) {
+            $alreadyExists = select('course_categories', 'id', ['category_name' => $request->input('category_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($alreadyExists)) {
                 return response()->json(['result' => -1, 'msg' => 'The category name has already been taken!']);
             }
 
@@ -467,8 +467,8 @@ class AdminController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
             }
 
-            $category = select('course_categories', 'category_name', ['category_name' => $request->input('category_name'), ['status', '!=', 'Deleted']])->first();
-            if (!empty($category)) {
+            $alreadyExists = select('course_categories', 'id', ['category_name' => $request->input('category_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($alreadyExists)) {
                 return response()->json(['result' => -1, 'msg' => 'The category name has already been taken!']);
             }
 
@@ -534,6 +534,20 @@ class AdminController extends Controller
             $result = AdminModel::getAllCourses($per_page, $search);
 
             if (!empty($result)) {
+                foreach ($result as $value) {
+                    $category = AdminModel::getCategoryById($value->category_id);
+                    $value->category_name = !empty($category->category_name) ? $category->category_name : null;
+                    $value->skills = !empty($value->skills) ? json_decode($value->skills) : null;
+                    $videos = select('course_module_videos', 'id', ['course_id' => $value->id, 'status' => 'Acive']);
+                    $documents = select('course_documents', 'id', ['course_id' => $value->id, 'document_type' => 'pdf', 'status' => 'Acive']);
+                    $presentations = select('course_documents', 'id', ['course_id' => $value->id, 'document_type' => 'ppt', 'status' => 'Acive']);
+                    $value->features = [
+                        'videos' => !empty($videos) ? count($videos) : 0,
+                        'documents' => !empty($documents) ? count($documents) : 0,
+                        'presentations' => !empty($presentations) ? count($presentations) : 0,
+                        'language' => !empty($value->language) ? json_decode($value->language) : null
+                    ];
+                }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -553,6 +567,18 @@ class AdminController extends Controller
             $result = AdminModel::getCourseById($id);
 
             if (!empty($result)) {
+                $category = AdminModel::getCategoryById($result->category_id);
+                $result->category_name = !empty($category->category_name) ? $category->category_name : null;
+                $result->skills = !empty($result->skills) ? json_decode($result->skills) : null;
+                $videos = select('course_module_videos', 'id', ['course_id' => $result->id, 'status' => 'Acive']);
+                $documents = select('course_documents', 'id', ['course_id' => $result->id, 'document_type' => 'pdf', 'status' => 'Acive']);
+                $presentations = select('course_documents', 'id', ['course_id' => $result->id, 'document_type' => 'ppt', 'status' => 'Acive']);
+                $result->features = [
+                    'videos' => !empty($videos) ? count($videos) : 0,
+                    'documents' => !empty($documents) ? count($documents) : 0,
+                    'presentations' => !empty($presentations) ? count($presentations) : 0,
+                    'language' => !empty($result->language) ? json_decode($result->language) : null
+                ];
                 return response()->json(['result' => 1, 'msg' => 'Course data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -578,8 +604,8 @@ class AdminController extends Controller
                 return response()->json(['result' => 0, 'errors' => $validator->errors()]);
             }
 
-            $course = select('courses', 'course_name', ['course_name' => $request->input('course_name'), ['status', '!=', 'Deleted']])->first();
-            if (!empty($course)) {
+            $alreadyExists = select('courses', 'id', ['course_name' => $request->input('course_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($alreadyExists)) {
                 return response()->json(['result' => -1, 'msg' => 'The course name has already been taken!']);
             }
 
@@ -634,8 +660,8 @@ class AdminController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
             }
 
-            $course = select('courses', 'course_name', ['course_name' => $request->input('course_name'), ['status', '!=', 'Deleted']])->first();
-            if (!empty($course)) {
+            $alreadyExists = select('courses', 'id', ['course_name' => $request->input('course_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($alreadyExists)) {
                 return response()->json(['result' => -1, 'msg' => 'The course name has already been taken!']);
             }
 
@@ -689,6 +715,165 @@ class AdminController extends Controller
 
             if (!empty($result)) {
                 return response()->json(['result' => 1, 'msg' => 'Course deleted successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Already deleted!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function addModuleVideo(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'course_id' => 'required',
+                'title' => 'required',
+                'description' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $alreadyExists = select('course_module_videos', 'id', ['title' => $request->input('title'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($alreadyExists)) {
+                return response()->json(['result' => -1, 'msg' => 'The module title has already been taken!']);
+            }
+
+            if ($request->hasfile('thumbnail')) {
+                $thumbnail = singleUpload($request, 'thumbnail', 'admin');
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Upload thumbnail image!']);
+            }
+
+            if ($request->hasfile('video')) {
+                $video = singleUpload($request, 'video', 'admin');
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Upload video!']);
+            }
+
+            $data = [
+                'course_id' => !empty($request->input('course_id')) ? $request->input('course_id') : null,
+                'title' => !empty($request->input('title')) ? $request->input('title') : null,
+                'description' => !empty($request->input('description')) ? $request->input('description') : null,
+                'thumbnail' => !empty($thumbnail) ? $thumbnail : null,
+                'video' => !empty($video) ? $video : null
+            ];
+
+            $result = AdminModel::addModuleVideo($data);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Module video added successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function deleteModuleVideo(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'video_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $video_id = $request->input('video_id');
+            $course = select('course_module_videos', '*', ['id' => $video_id])->first();
+            if (empty($course)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            $result = AdminModel::deleteModuleVideo($video_id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Video deleted successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Already deleted!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function addModuleDocument(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'course_id' => 'required',
+                'document_name' => 'required',
+                'document_type' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $alreadyExists = select('course_documents', 'id', ['document_name' => $request->input('document_name'), ['status', '!=', 'Deleted']])->first();
+            if (!empty($alreadyExists)) {
+                return response()->json(['result' => -1, 'msg' => 'The documen name has already been taken!']);
+            }
+
+            if ($request->hasfile('ducument')) {
+                $extension = $request->file('ducument')->getClientOriginalExtension();
+                if ($extension === 'pdf' && $request->input('document_type') !== 'pdf') {
+                    return response()->json(['result' => -1, 'msg' => 'File type and document_type do not match! Please upload a PDF.']);
+                }
+                $ducument = singleUpload($request, 'ducument', 'admin');
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Upload ducument!']);
+            }
+
+            $data = [
+                'course_id' => !empty($request->input('course_id')) ? $request->input('course_id') : null,
+                'document_name' => !empty($request->input('document_name')) ? $request->input('document_name') : null,
+                'document_type' => !empty($request->input('document_type')) ? $request->input('document_type') : null,
+                'ducument' => !empty($ducument) ? $ducument : null
+            ];
+
+            $result = AdminModel::addModuleDocument($data);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Module document added successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function deleteModuleDocument(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'document_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $document_id = $request->input('document_id');
+            $course = select('course_documents', '*', ['id' => $document_id])->first();
+            if (empty($course)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            $result = AdminModel::deleteModuleDocument($document_id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Document deleted successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Already deleted!']);
             }

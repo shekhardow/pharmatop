@@ -186,4 +186,36 @@ class AdminModel extends Model
         });
         return $result;
     }
+
+    public static function addModuleVideo($data)
+    {
+        $result = DB::transaction(function () use ($data) {
+            return DB::table('course_module_videos')->insert($data);
+        });
+        return $result;
+    }
+
+    public static function deleteModuleVideo($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            return DB::table('course_module_videos')->where('id', $id)->update(['status' => 'Deleted']);
+        });
+        return $result;
+    }
+
+    public static function addModuleDocument($data)
+    {
+        $result = DB::transaction(function () use ($data) {
+            return DB::table('course_documents')->insert($data);
+        });
+        return $result;
+    }
+
+    public static function deleteModuleDocument($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            return DB::table('course_documents')->where('id', $id)->update(['status' => 'Deleted']);
+        });
+        return $result;
+    }
 }

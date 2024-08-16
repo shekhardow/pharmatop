@@ -154,28 +154,47 @@ function multipleUploads($request, $file_name, $path)
 }
 
 // For Single AWS Upload
-function singleAwsUpload(Request $request, $file_name, $path)
+function singleAwsUpload($request, $file_name)
 {
-    if ($request->hasfile($file_name)) {
-        $file = $request->file($file_name);
-        $path = Storage::disk('s3')->put($path, $file);
-        return $path ? Storage::disk('s3')->url($path) : false;
+    if ($request->hasFile($file_name)) {
+        $extension = $request->file($file_name)->getClientOriginalExtension();
+        $uploadFolder = $extension === 'pdf' ? 'pdfs' : 'images';
+        $fileName = time() . '.' . $extension;
+        $uploadedPath = Storage::disk('s3')->putFileAs($uploadFolder, $request->file($file_name), $fileName);
+        if ($uploadedPath) {
+            $url = Storage::disk('s3')->url($uploadedPath);
+            return $url;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
     }
-    return false;
 }
 
-// For Multiple AWS Uploads
-function multipleAwsUploads(Request $request, $file_name, $path)
+// For Multiple AWS Upload
+function multipleAwsUploads($request, $file_name)
 {
-    if ($request->hasfile($file_name)) {
-        $data = array_map(function ($file) use ($path) {
-            $filePath = Storage::disk('s3')->put($path, $file);
-            return Storage::disk('s3')->url($filePath);
-        }, $request->file($file_name));
-
-        return !empty($data) ? $data : false;
+    if ($request->hasFile($file_name)) {
+        $data = [];
+        foreach ($request->file($file_name) as $file) {
+            $extension = $file->getClientOriginalExtension();
+            $uploadFolder = $extension === 'pdf' ? 'pdfs' : 'images';
+            $fileName = time() . '.' . $extension;
+            $uploadedPath = Storage::disk('s3')->putFileAs($uploadFolder, $file, $fileName);
+            if ($uploadedPath) {
+                $url = Storage::disk('s3')->url($uploadedPath);
+                $data[] = $url;
+            }
+        }
+        if (!empty($data)) {
+            return $data;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
     }
-    return false;
 }
 
 function generateSlug($string, $separator = '-', $maxLength = 100)

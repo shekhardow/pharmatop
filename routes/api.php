@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Middleware\ApiAuth;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\UserController;
 
 URL::forceScheme('https');
 
@@ -59,6 +60,19 @@ Route::group(['prefix' => 'admin'], function () {
     Route::post('/addCourse', [AdminController::class, 'addCourse']);
     Route::post('/updateCourse', [AdminController::class, 'updateCourse']);
     Route::post('/deleteCourse', [AdminController::class, 'deleteCourse']);
+    Route::post('/addModuleVideo', [AdminController::class, 'addModuleVideo']);
+    Route::post('/deleteModuleVideo', [AdminController::class, 'deleteModuleVideo']);
+    Route::post('/addModuleDocument', [AdminController::class, 'addModuleDocument']);
+    Route::post('/deleteModuleDocument', [AdminController::class, 'deleteModuleDocument']);
 });
 
-Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {});
+Route::post('user/register', [UserController::class, 'register']);
+Route::post('user/login', [UserController::class, 'login']);
+Route::post('user/forgotPassword', [UserController::class, 'forgotPassword']);
+Route::post('user/resendOTP', [UserController::class, 'resendOTP']);
+Route::post('user/resetPassword', [UserController::class, 'resetPassword']);
+
+Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
+    Route::post('/updateProfile', [UserController::class, 'updateProfile']);
+    Route::post('/changePassword', [UserController::class, 'changePassword']);
+});
