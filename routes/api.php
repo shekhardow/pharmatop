@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Middleware\ApiAuth;
+use App\Http\Controllers\CommonController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\UserController;
 
@@ -30,6 +31,13 @@ Route::get('/composer-update', function () {
     return "✔️ Composer update has been completed.<br><br>" .
         "Composer Update Output:<br>" . nl2br($composerOutput) . "<br><br>" .
         "⏱️ Total Execution Time: " . round($executionTime, 2) . " seconds.";
+});
+
+Route::group(['prefix' => 'common'], function () {
+    Route::post('/login', [CommonController::class, 'login']);
+    Route::post('/forgotPassword', [CommonController::class, 'forgotPassword']);
+    Route::post('/resendOTP', [CommonController::class, 'resendOTP']);
+    Route::post('/resetPassword', [CommonController::class, 'resetPassword']);
 });
 
 Route::group(['prefix' => 'admin'], function () {
@@ -70,9 +78,13 @@ Route::post('user/register', [UserController::class, 'register']);
 Route::post('user/login', [UserController::class, 'login']);
 Route::post('user/forgotPassword', [UserController::class, 'forgotPassword']);
 Route::post('user/resendOTP', [UserController::class, 'resendOTP']);
+Route::post('user/verifyResetPasswordOTP', [UserController::class, 'verifyResetPasswordOTP']);
 Route::post('user/resetPassword', [UserController::class, 'resetPassword']);
 
 Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::post('/updateProfile', [UserController::class, 'updateProfile']);
     Route::post('/changePassword', [UserController::class, 'changePassword']);
+    Route::get('/getAllCategories', [UserController::class, 'getAllCategories']);
+    Route::get('/getAllCourses', [UserController::class, 'getAllCourses']);
+    Route::get('/getCourseById/{id?}', [UserController::class, 'getCourseById']);
 });

@@ -38,6 +38,25 @@ class AdminController extends Controller
         }
     }
 
+    public function getAdminById($id = null)
+    {
+        try {
+            if (empty($id)) {
+                return response()->json(['result' => 0, 'errors' => 'Id is required!']);
+            }
+
+            $result = AdminModel::getAdminById($id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Admin data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
     public function forgotPassword(Request $request)
     {
         try {
@@ -114,6 +133,39 @@ class AdminController extends Controller
         }
     }
 
+    public function verifyResetPasswordOTP(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required',
+                'otp' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $otp = $request->input('otp');
+            $user = AdminModel::getAdminById($request->input('user_id'));
+
+            if (!empty($user)) {
+                if ($user->status == 'Inactive' || $user->status == 'Blocked') {
+                    return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
+                }
+                if ($otp === $user->otp) {
+                    update('admins', 'id', $user->id, ['reset_password_verified' => 'Yes']);
+                }
+                $user = AdminModel::getAdminById($user->id);
+                return response()->json(['result' => 1, 'msg' => 'OTP verification successful.', 'data' => $user]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No active account exist with this id!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
     public function resetPassword(Request $request)
     {
         try {
@@ -131,14 +183,13 @@ class AdminController extends Controller
             }
 
             $user_id = $request->input('user_id');
-            $otp = $request->input('otp');
             $user = AdminModel::getAdminById($user_id);
 
             if (!empty($user)) {
                 $password = Hash::make($request->input('password'));
-                $result = AdminModel::resetPassword($user_id, $otp, $password);
+                $result = AdminModel::resetPassword($user_id, $password);
                 if ($result) {
-                    update('admins', 'id', $user->id, ['otp' => null]);
+                    update('admins', 'id', $user->id, ['otp' => null, 'reset_password_verified' => 'No']);
                     return response()->json(['result' => 1, 'msg' => 'Password reset successfully']);
                 } else {
                     return response()->json(['result' => 0, 'msg' => 'Password already updated!']);
@@ -154,11 +205,18 @@ class AdminController extends Controller
     public function updateProfile(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
+            $rules = [
                 'user_id' => 'required'
-            ], [
+            ];
+            $messages = [
                 'required' => 'The :attribute field is required'
-            ]);
+            ];
+            if ($request->has('current_password') || $request->has('new_password') || $request->has('confirm_password')) {
+                $rules['current_password'] = 'required';
+                $rules['new_password'] = 'required|min:6';
+                $rules['confirm_password'] = 'required|same:new_password';
+            }
+            $validator = Validator::make($request->all(), $rules, $messages);
             if ($validator->fails()) {
                 return response()->json(['result' => 0, 'errors' => $validator->errors()]);
             }
@@ -167,36 +225,45 @@ class AdminController extends Controller
             $user = AdminModel::getAdminById($user_id);
 
             $logo = $request->hasFile('logo') ? singleUpload($request, 'logo', '/uploads/admin_profile') : $user->logo;
-
             $favicon = $request->hasFile('favicon') ? singleUpload($request, 'favicon', '/uploads/admin_profile') : $user->favicon;
-
             $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/uploads/admin_profile') : $user->profile_image;
 
-            if ($request->has('first_name') || $request->has('last_name') || $request->has('phone') || $request->has('address')) {
-                $data = [
-                    'logo' => !empty($logo) ? $logo : null,
-                    'favicon' => !empty($favicon) ? $favicon : null,
-                    'profile_image' => !empty($profile_image) ? $profile_image : null,
-                    'updated_at' => now()->format('Y-m-d H:i:s')
-                ];
-                if ($request->has('first_name')) {
-                    $data['first_name'] = $request->input('first_name');
+            $data = [
+                'logo' => !empty($logo) ? $logo : null,
+                'favicon' => !empty($favicon) ? $favicon : null,
+                'profile_image' => !empty($profile_image) ? $profile_image : null,
+                'updated_at' => now()->format('Y-m-d H:i:s')
+            ];
+            if ($request->has('first_name')) {
+                $data['first_name'] = $request->input('first_name');
+            }
+            if ($request->has('last_name')) {
+                $data['last_name'] = $request->input('last_name');
+            }
+            if ($request->has('phone')) {
+                $data['phone'] = $request->input('phone');
+            }
+            if ($request->has('address')) {
+                $data['address'] = $request->input('address');
+            }
+
+            if ($request->has('current_password') && $request->has('new_password') && $request->has('confirm_password')) {
+                if (!Hash::check($request->input('current_password'), $user->password)) {
+                    return response()->json(['result' => -1, 'msg' => 'Incorrect current password']);
                 }
-                if ($request->has('last_name')) {
-                    $data['last_name'] = $request->input('last_name');
+
+                if ($request->input('current_password') === $request->input('new_password')) {
+                    return response()->json(['result' => -1, 'msg' => "Current password and new password shouldn't be the same!"]);
                 }
-                if ($request->has('phone')) {
-                    $data['phone'] = $request->input('phone');
-                }
-                if ($request->has('address')) {
-                    $data['address'] = $request->input('address');
-                }
-                $result = AdminModel::updateProfile($user_id, $data);
-                if ($result) {
-                    return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $result]);
-                }
+
+                $data['password'] = Hash::make($request->input('new_password'));
+            }
+
+            $result = AdminModel::updateProfile($user_id, $data);
+            if ($result) {
+                return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $result]);
             } else {
-                return response()->json(['result' => -1, 'msg' => 'No changes were found!']);
+                return response()->json(['result' => -1, 'msg' => 'Failed to update profile!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -375,8 +442,10 @@ class AdminController extends Controller
             $per_page = $request->query('per_page') ?? 10;
             $search = $request->query('search') ?? null;
             $result = AdminModel::getAllCategories($per_page, $search);
-
             if (!empty($result)) {
+                foreach ($result as $value) {
+                    $value->category_image = !empty($value->category_image) ? url("uploads/admin/$value->category_image") : null;
+                }
                 return response()->json(['result' => 1, 'msg' => 'Categories data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -392,10 +461,9 @@ class AdminController extends Controller
             if (empty($id)) {
                 return response()->json(['result' => 0, 'errors' => 'Id is required!']);
             }
-
             $result = AdminModel::getCategoryById($id);
-
             if (!empty($result)) {
+                $result->category_image = !empty($result->category_image) ? url("uploads/admin/$result->category_image") : null;
                 return response()->json(['result' => 1, 'msg' => 'Category data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -535,18 +603,38 @@ class AdminController extends Controller
 
             if (!empty($result)) {
                 foreach ($result as $value) {
+                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                     $category = AdminModel::getCategoryById($value->category_id);
                     $value->category_name = !empty($category->category_name) ? $category->category_name : null;
                     $value->skills = !empty($value->skills) ? json_decode($value->skills) : null;
-                    $videos = select('course_module_videos', 'id', ['course_id' => $value->id, 'status' => 'Acive']);
-                    $documents = select('course_documents', 'id', ['course_id' => $value->id, 'document_type' => 'pdf', 'status' => 'Acive']);
-                    $presentations = select('course_documents', 'id', ['course_id' => $value->id, 'document_type' => 'ppt', 'status' => 'Acive']);
+                    $videos = select('course_module_videos', '*', ['course_id' => $value->id, 'status' => 'Active']);
+                    $documents = select('course_documents', '*', ['course_id' => $value->id, 'document_type' => 'pdf', 'status' => 'Active']);
+                    $presentations = select('course_documents', '*', ['course_id' => $value->id, 'document_type' => 'ppt', 'status' => 'Active']);
                     $value->features = [
                         'videos' => !empty($videos) ? count($videos) : 0,
                         'documents' => !empty($documents) ? count($documents) : 0,
                         'presentations' => !empty($presentations) ? count($presentations) : 0,
                         'language' => !empty($value->language) ? json_decode($value->language) : null
                     ];
+                    $value->videos = !empty($videos) ? $videos : null;
+                    if (!empty($value->videos)) {
+                        foreach ($value->videos as $video) {
+                            $video->thumbnail = !empty($video->thumbnail) ? url("uploads/admin/$video->thumbnail") : null;
+                            $video->video = !empty($video->video) ? url("uploads/admin/$video->video") : null;
+                        }
+                    }
+                    $value->documents = !empty($documents) ? $documents : null;
+                    if (!empty($value->documents)) {
+                        foreach ($value->documents as $document) {
+                            $document->document = !empty($document->document) ? url("uploads/admin/$document->document") : null;
+                        }
+                    }
+                    $value->presentations = !empty($presentations) ? $presentations : null;
+                    if (!empty($value->presentations)) {
+                        foreach ($value->presentations as $presentation) {
+                            $presentation->document = !empty($presentation->document) ? url("uploads/admin/$presentation->document") : null;
+                        }
+                    }
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
             } else {
@@ -567,18 +655,38 @@ class AdminController extends Controller
             $result = AdminModel::getCourseById($id);
 
             if (!empty($result)) {
+                $result->course_image = !empty($result->course_image) ? url("uploads/admin/$result->course_image") : null;
                 $category = AdminModel::getCategoryById($result->category_id);
                 $result->category_name = !empty($category->category_name) ? $category->category_name : null;
                 $result->skills = !empty($result->skills) ? json_decode($result->skills) : null;
-                $videos = select('course_module_videos', 'id', ['course_id' => $result->id, 'status' => 'Acive']);
-                $documents = select('course_documents', 'id', ['course_id' => $result->id, 'document_type' => 'pdf', 'status' => 'Acive']);
-                $presentations = select('course_documents', 'id', ['course_id' => $result->id, 'document_type' => 'ppt', 'status' => 'Acive']);
+                $videos = select('course_module_videos', '*', ['course_id' => $id, 'status' => 'Active']);
+                $documents = select('course_documents', '*', ['course_id' => $id, 'document_type' => 'pdf', 'status' => 'Active']);
+                $presentations = select('course_documents', '*', ['course_id' => $id, 'document_type' => 'ppt', 'status' => 'Active']);
                 $result->features = [
                     'videos' => !empty($videos) ? count($videos) : 0,
                     'documents' => !empty($documents) ? count($documents) : 0,
                     'presentations' => !empty($presentations) ? count($presentations) : 0,
                     'language' => !empty($result->language) ? json_decode($result->language) : null
                 ];
+                $result->videos = !empty($videos) ? $videos : null;
+                if (!empty($result->videos)) {
+                    foreach ($result->videos as $video) {
+                        $video->thumbnail = !empty($video->thumbnail) ? url("uploads/admin/$video->thumbnail") : null;
+                        $video->video = !empty($video->video) ? url("uploads/admin/$video->video") : null;
+                    }
+                }
+                $result->documents = !empty($documents) ? $documents : null;
+                if (!empty($result->documents)) {
+                    foreach ($result->documents as $document) {
+                        $document->document = !empty($document->document) ? url("uploads/admin/$document->document") : null;
+                    }
+                }
+                $result->presentations = !empty($presentations) ? $presentations : null;
+                if (!empty($result->presentations)) {
+                    foreach ($result->presentations as $presentation) {
+                        $presentation->document = !empty($presentation->document) ? url("uploads/admin/$presentation->document") : null;
+                    }
+                }
                 return response()->json(['result' => 1, 'msg' => 'Course data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -820,24 +928,24 @@ class AdminController extends Controller
 
             $alreadyExists = select('course_documents', 'id', ['document_name' => $request->input('document_name'), ['status', '!=', 'Deleted']])->first();
             if (!empty($alreadyExists)) {
-                return response()->json(['result' => -1, 'msg' => 'The documen name has already been taken!']);
+                return response()->json(['result' => -1, 'msg' => 'The document name has already been taken!']);
             }
 
-            if ($request->hasfile('ducument')) {
-                $extension = $request->file('ducument')->getClientOriginalExtension();
-                if ($extension === 'pdf' && $request->input('document_type') !== 'pdf') {
+            if ($request->hasfile('document')) {
+                $extension = $request->file('document')->getClientOriginalExtension();
+                if ($request->input('document_type') === 'pdf' && $extension !== 'pdf') {
                     return response()->json(['result' => -1, 'msg' => 'File type and document_type do not match! Please upload a PDF.']);
                 }
-                $ducument = singleUpload($request, 'ducument', 'admin');
+                $document = singleUpload($request, 'document', 'admin');
             } else {
-                return response()->json(['result' => -1, 'msg' => 'Upload ducument!']);
+                return response()->json(['result' => -1, 'msg' => 'Upload document!']);
             }
 
             $data = [
                 'course_id' => !empty($request->input('course_id')) ? $request->input('course_id') : null,
                 'document_name' => !empty($request->input('document_name')) ? $request->input('document_name') : null,
                 'document_type' => !empty($request->input('document_type')) ? $request->input('document_type') : null,
-                'ducument' => !empty($ducument) ? $ducument : null
+                'document' => !empty($document) ? $document : null
             ];
 
             $result = AdminModel::addModuleDocument($data);

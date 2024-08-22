@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Storage;
 
 function generateOtp()
 {
-    return 123456;
-    // return rand(111111, 999999);
+    return 1234;
+    // return rand(1111, 9999);
 }
 
 function generateToken()

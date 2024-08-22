@@ -26,10 +26,10 @@ class AdminModel extends Model
         return $result;
     }
 
-    public static function resetPassword($id, $otp, $password)
+    public static function resetPassword($id, $password)
     {
-        $result = DB::transaction(function () use ($id, $otp, $password) {
-            return DB::table('admins')->where('id', $id)->where('otp', $otp)->update(['password' => $password]);
+        $result = DB::transaction(function () use ($id, $password) {
+            return DB::table('admins')->where('id', $id)->where('reset_password_verified', 'Yes')->update(['password' => $password]);
         });
         return $result;
     }

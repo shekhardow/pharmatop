@@ -163,6 +163,39 @@ class UserController extends Controller
         }
     }
 
+    public function verifyResetPasswordOTP(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required',
+                'otp' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $otp = $request->input('otp');
+            $user = UserModel::getUserById($request->input('user_id'));
+
+            if (!empty($user)) {
+                if ($user->status == 'Inactive' || $user->status == 'Blocked') {
+                    return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
+                }
+                if ($otp === $user->otp) {
+                    update('users', 'id', $user->id, ['reset_password_verified' => 'Yes']);
+                }
+                $user = UserModel::getUserById($user->id);
+                return response()->json(['result' => 1, 'msg' => 'OTP verification successful.', 'data' => $user]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No active account exist with this id!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
     public function resetPassword(Request $request)
     {
         try {
@@ -180,14 +213,13 @@ class UserController extends Controller
             }
 
             $user_id = $request->input('user_id');
-            $otp = $request->input('otp');
             $user = UserModel::getUserById($user_id);
 
             if (!empty($user)) {
                 $password = Hash::make($request->input('password'));
-                $result = UserModel::resetPassword($user_id, $otp, $password);
+                $result = UserModel::resetPassword($user_id, $password);
                 if ($result) {
-                    update('users', 'id', $user->id, ['otp' => null]);
+                    update('users', 'id', $user->id, ['otp' => null, 'reset_password_verified' => 'No']);
                     return response()->json(['result' => 1, 'msg' => 'Password reset successfully']);
                 } else {
                     return response()->json(['result' => 0, 'msg' => 'Password already updated!']);
@@ -203,16 +235,9 @@ class UserController extends Controller
     public function updateProfile(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'user_id' => 'required'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->user_id;
 
-            $user_id = $request->input('user_id');
             $user = UserModel::getUserById($user_id);
 
             $logo = $request->hasFile('logo') ? singleUpload($request, 'logo', '/uploads/admin_profile') : $user->logo;
@@ -255,8 +280,10 @@ class UserController extends Controller
     public function changePassword(Request $request)
     {
         try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->user_id;
+
             $validator = Validator::make($request->all(), [
-                'user_id' => 'required',
                 'current_password' => 'required',
                 'new_password' => 'required|min:6',
                 'confirm_password' => 'required|same:new_password'
@@ -264,8 +291,6 @@ class UserController extends Controller
             if ($validator->fails()) {
                 return response()->json(['result' => 0, 'msg' => $validator->errors()->first()]);
             }
-
-            $user_id = $request->input('user_id');
 
             $user = UserModel::getUserById($user_id);
 
@@ -288,7 +313,94 @@ class UserController extends Controller
                     return response()->json(['result' => -1, 'msg' => "Current password and new password shouldn't be same!"]);
                 }
             } else {
-                return response()->json(['result' => -1, 'msg' => 'Invalid ID!']);
+                return response()->json(['result' => -1, 'msg' => 'Invalid token!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllCategories(Request $request)
+    {
+        try {
+            $per_page = $request->query('per_page') ?? 10;
+            $search = $request->query('search') ?? null;
+            $result = UserModel::getAllCategories($per_page, $search);
+            if (!empty($result)) {
+                foreach ($result as $value) {
+                    $value->category_image = !empty($value->category_image) ? url("uploads/admin/$value->category_image") : null;
+                }
+                return response()->json(['result' => 1, 'msg' => 'Categories data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllCourses(Request $request)
+    {
+        try {
+            $per_page = $request->query('per_page') ?? 10;
+            $search = $request->query('search') ?? null;
+            $result = UserModel::getAllCourses($per_page, $search);
+            if (!empty($result)) {
+                foreach ($result as $value) {
+                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
+                }
+                return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getCourseById($id = null)
+    {
+        try {
+            if (empty($id)) {
+                return response()->json(['result' => 0, 'errors' => 'Id is required!']);
+            }
+            $result = UserModel::getCourseById($id);
+            if (!empty($result)) {
+                $result->course_image = !empty($result->course_image) ? url("uploads/admin/$result->course_image") : null;
+                $category = UserModel::getCategoryById($result->category_id);
+                $result->category_name = !empty($category->category_name) ? $category->category_name : null;
+                $result->skills = !empty($result->skills) ? json_decode($result->skills) : null;
+                $videos = select('course_module_videos', '*', ['course_id' => $id, 'status' => 'Active']);
+                $documents = select('course_documents', '*', ['course_id' => $id, 'document_type' => 'pdf', 'status' => 'Active']);
+                $presentations = select('course_documents', '*', ['course_id' => $id, 'document_type' => 'ppt', 'status' => 'Active']);
+                $result->features = [
+                    'videos' => !empty($videos) ? count($videos) : 0,
+                    'documents' => !empty($documents) ? count($documents) : 0,
+                    'presentations' => !empty($presentations) ? count($presentations) : 0,
+                    'language' => !empty($result->language) ? json_decode($result->language) : null
+                ];
+                $result->videos = !empty($videos) ? $videos : null;
+                if (!empty($result->videos)) {
+                    foreach ($result->videos as $video) {
+                        $video->thumbnail = !empty($video->thumbnail) ? url("uploads/admin/$video->thumbnail") : null;
+                        $video->video = !empty($video->video) ? url("uploads/admin/$video->video") : null;
+                    }
+                }
+                $result->documents = !empty($documents) ? $documents : null;
+                if (!empty($result->documents)) {
+                    foreach ($result->documents as $document) {
+                        $document->document = !empty($document->document) ? url("uploads/admin/$document->document") : null;
+                    }
+                }
+                $result->presentations = !empty($presentations) ? $presentations : null;
+                if (!empty($result->presentations)) {
+                    foreach ($result->presentations as $presentation) {
+                        $presentation->document = !empty($presentation->document) ? url("uploads/admin/$presentation->document") : null;
+                    }
+                }
+                return response()->json(['result' => 1, 'msg' => 'Course data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
