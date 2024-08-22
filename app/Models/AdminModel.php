@@ -26,14 +26,6 @@ class AdminModel extends Model
         return $result;
     }
 
-    public static function resetPassword($id, $password)
-    {
-        $result = DB::transaction(function () use ($id, $password) {
-            return DB::table('admins')->where('id', $id)->where('reset_password_verified', 'Yes')->update(['password' => $password]);
-        });
-        return $result;
-    }
-
     public static function updateProfile($id, $data)
     {
         $result = DB::transaction(function () use ($id, $data) {
@@ -72,10 +64,18 @@ class AdminModel extends Model
         return $result;
     }
 
-    public static function getAllUsers($per_page)
+    public static function getAllUsers($per_page, $search = null)
     {
-        $result = DB::transaction(function () use ($per_page) {
-            return DB::table('users')->select('*')->where('status', '!=', 'Deleted')->paginate($per_page);
+        $result = DB::transaction(function () use ($per_page, $search) {
+            $query = DB::table('users')->select('*')->where('status', '!=', 'Deleted');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+            return $query->paginate($per_page);
         });
         return $result;
     }

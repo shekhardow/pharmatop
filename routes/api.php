@@ -37,15 +37,12 @@ Route::group(['prefix' => 'common'], function () {
     Route::post('/login', [CommonController::class, 'login']);
     Route::post('/forgotPassword', [CommonController::class, 'forgotPassword']);
     Route::post('/resendOTP', [CommonController::class, 'resendOTP']);
+    Route::post('/verifyResetPasswordOTP', [CommonController::class, 'verifyResetPasswordOTP']);
     Route::post('/resetPassword', [CommonController::class, 'resetPassword']);
 });
 
 Route::group(['prefix' => 'admin'], function () {
-    Route::post('/login', [AdminController::class, 'login']);
-    Route::post('/forgotPassword', [AdminController::class, 'forgotPassword']);
-    Route::post('/resendOTP', [AdminController::class, 'resendOTP']);
-    Route::post('/resetPassword', [AdminController::class, 'resetPassword']);
-
+    Route::get('/getAdminById/{id?}', [AdminController::class, 'getAdminById']);
     Route::post('/updateProfile', [AdminController::class, 'updateProfile']);
     Route::post('/changePassword', [AdminController::class, 'changePassword']);
 
@@ -75,11 +72,7 @@ Route::group(['prefix' => 'admin'], function () {
 });
 
 Route::post('user/register', [UserController::class, 'register']);
-Route::post('user/login', [UserController::class, 'login']);
-Route::post('user/forgotPassword', [UserController::class, 'forgotPassword']);
-Route::post('user/resendOTP', [UserController::class, 'resendOTP']);
-Route::post('user/verifyResetPasswordOTP', [UserController::class, 'verifyResetPasswordOTP']);
-Route::post('user/resetPassword', [UserController::class, 'resetPassword']);
+Route::get('user/insertDummyUsers', [UserController::class, 'insertDummyUsers']);
 
 Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::post('/updateProfile', [UserController::class, 'updateProfile']);

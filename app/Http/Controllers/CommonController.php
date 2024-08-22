@@ -134,7 +134,7 @@ class CommonController extends Controller
                 if ($user->status == 'Inactive' || $user->status == 'Blocked') {
                     return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
                 }
-                if ($otp === $user->otp) {
+                if ($otp == $user->otp) {
                     update($user->source, 'id', $user->id, ['reset_password_verified' => 'Yes']);
                 }
                 $user = CommonModel::getUserByEmail($user->email);
@@ -173,7 +173,7 @@ class CommonController extends Controller
                     update($user->source, 'id', $user->id, ['otp' => null, 'reset_password_verified' => 'No']);
                     return response()->json(['result' => 1, 'msg' => 'Password reset successfully']);
                 } else {
-                    return response()->json(['result' => -1, 'msg' => 'Account does not exist or verification failed!']);
+                    return response()->json(['result' => -1, 'msg' => 'Password not updated. It’s either the same or already in use!']);
                 }
             } else {
                 return response()->json(['result' => -1, 'msg' => 'User not found!']);

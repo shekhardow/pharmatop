@@ -6,9 +6,23 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
+    public function insertDummyUsers()
+    {
+        $numberOfUsers = 100;
+        for ($i = 1; $i <= $numberOfUsers; $i++) {
+            DB::table('users')->insert([
+                'first_name' => 'Tushar' . $i,
+                'last_name' => 'Kumar',
+                'email' => 'tushar' . $i . '@example.com',
+                'password' => bcrypt('password')
+            ]);
+        }
+        return "Inserted {$numberOfUsers} dummy users!";
+    }
     public function register(Request $request)
     {
         try {
@@ -58,185 +72,25 @@ class UserController extends Controller
         }
     }
 
-    public function login(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|string|email',
-                'password' => 'required|string'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $user = UserModel::getUserByEmail($request->input('email'));
-
-            if (empty($user)) {
-                return response()->json(['result' => -1, 'msg' => 'Invalid email!']);
-            }
-
-            if (!Hash::check($request->input('password'), $user->password)) {
-                return response()->json(['result' => -1, 'msg' => 'Invalid password!']);
-            }
-
-            return response()->json(['result' => 1, 'msg' => 'Logged in successfully', 'data' => $user]);
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function forgotPassword(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|string|email'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $user = UserModel::getUserByEmail($request->input('email'));
-
-            if (!empty($user)) {
-                if ($user->status == 'Inactive' || $user->status == 'Blocked') {
-                    return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
-                }
-                $otp = generateOtp();
-                // $maildata = [
-                //     'name' => $user->first_name,
-                //     'to' => $user->email,
-                //     'msg' => "Your verification OTP for resetting password is <strong>$otp</strong>",
-                //     'subject' => 'OTP Verifiation Email For Forgot Password',
-                //     'view_name' => 'otp'
-                // ];
-                // sendMail($maildata);
-                update('users', 'id', $user->id, ['otp' => $otp]);
-                $user = UserModel::getUserById($user->id);
-                return response()->json(['result' => 1, 'msg' => 'Verification OTP has been sent to your email.', 'data' => $user]);
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'Account does not exist with this email!']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function resendOTP(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'user_id' => 'required'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $user = UserModel::getUserById($request->input('user_id'));
-
-            if (!empty($user)) {
-                if ($user->status == 'Inactive' || $user->status == 'Blocked') {
-                    return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
-                }
-                $otp = generateOtp();
-                // $maildata = [
-                //     'name' => $user->first_name,
-                //     'to' => $user->email,
-                //     'msg' => "Your verification OTP for resetting password is <strong>$otp</strong>",
-                //     'subject' => 'OTP Verifiation Email For Forgot Password',
-                //     'view_name' => 'otp'
-                // ];
-                // sendMail($maildata);
-                update('users', 'id', $user->id, ['otp' => $otp]);
-                $user = UserModel::getUserById($user->id);
-                return response()->json(['result' => 1, 'msg' => 'Verification OTP has been resent to your email.', 'data' => $user]);
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'No active account exist with this id!']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function verifyResetPasswordOTP(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'user_id' => 'required',
-                'otp' => 'required'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $otp = $request->input('otp');
-            $user = UserModel::getUserById($request->input('user_id'));
-
-            if (!empty($user)) {
-                if ($user->status == 'Inactive' || $user->status == 'Blocked') {
-                    return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
-                }
-                if ($otp === $user->otp) {
-                    update('users', 'id', $user->id, ['reset_password_verified' => 'Yes']);
-                }
-                $user = UserModel::getUserById($user->id);
-                return response()->json(['result' => 1, 'msg' => 'OTP verification successful.', 'data' => $user]);
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'No active account exist with this id!']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function resetPassword(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'user_id' => 'required',
-                'password' => 'required|min:6',
-                'confirm_password' => 'required|same:password'
-            ], [
-                'required' => 'The :attribute field is required',
-                'same' => 'The :attribute field must match the password field',
-                'min' => 'The :attribute must be at least :min characters'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $user_id = $request->input('user_id');
-            $user = UserModel::getUserById($user_id);
-
-            if (!empty($user)) {
-                $password = Hash::make($request->input('password'));
-                $result = UserModel::resetPassword($user_id, $password);
-                if ($result) {
-                    update('users', 'id', $user->id, ['otp' => null, 'reset_password_verified' => 'No']);
-                    return response()->json(['result' => 1, 'msg' => 'Password reset successfully']);
-                } else {
-                    return response()->json(['result' => 0, 'msg' => 'Password already updated!']);
-                }
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'User not found!']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
     public function updateProfile(Request $request)
     {
         try {
             $token = $request->header('token');
             $user_id = getUserByToken($token)->user_id;
+
+            $rules = [];
+            $messages = [
+                'required' => 'The :attribute field is required'
+            ];
+            if ($request->has('current_password') || $request->has('new_password') || $request->has('confirm_password')) {
+                $rules['current_password'] = 'required';
+                $rules['new_password'] = 'required|min:6';
+                $rules['confirm_password'] = 'required|same:new_password';
+            }
+            $validator = Validator::make($request->all(), $rules, $messages);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
 
             $user = UserModel::getUserById($user_id);
 
@@ -265,6 +119,19 @@ class UserController extends Controller
                 if ($request->has('address')) {
                     $data['address'] = $request->input('address');
                 }
+
+                if ($request->has('current_password') && $request->has('new_password') && $request->has('confirm_password')) {
+                    if (!Hash::check($request->input('current_password'), $user->password)) {
+                        return response()->json(['result' => -1, 'msg' => 'Incorrect current password']);
+                    }
+
+                    if ($request->input('current_password') === $request->input('new_password')) {
+                        return response()->json(['result' => -1, 'msg' => "Current password and new password shouldn't be the same!"]);
+                    }
+
+                    $data['password'] = Hash::make($request->input('new_password'));
+                }
+
                 $result = UserModel::updateProfile($user_id, $data);
                 if ($result) {
                     return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $result]);

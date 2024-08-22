@@ -9,35 +9,6 @@ use App\Models\AdminModel;
 
 class AdminController extends Controller
 {
-    public function login(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|string|email',
-                'password' => 'required|string'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $user = AdminModel::getAdminByEmail($request->input('email'));
-
-            if (empty($user)) {
-                return response()->json(['result' => -1, 'msg' => 'Invalid email!']);
-            }
-
-            if (!Hash::check($request->input('password'), $user->password)) {
-                return response()->json(['result' => -1, 'msg' => 'Invalid password!']);
-            }
-
-            return response()->json(['result' => 1, 'msg' => 'Logged in successfully', 'data' => $user]);
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
     public function getAdminById($id = null)
     {
         try {
@@ -51,151 +22,6 @@ class AdminController extends Controller
                 return response()->json(['result' => 1, 'msg' => 'Admin data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function forgotPassword(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|string|email'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $user = AdminModel::getAdminByEmail($request->input('email'));
-
-            if (!empty($user)) {
-                if ($user->status == 'Inactive' || $user->status == 'Blocked') {
-                    return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
-                }
-                $otp = generateOtp();
-                // $maildata = [
-                //     'name' => $user->first_name,
-                //     'to' => $user->email,
-                //     'msg' => "Your verification OTP for resetting password is <strong>$otp</strong>",
-                //     'subject' => 'OTP Verifiation Email For Forgot Password',
-                //     'view_name' => 'otp'
-                // ];
-                // sendMail($maildata);
-                update('admins', 'id', $user->id, ['otp' => $otp]);
-                $user = AdminModel::getAdminById($user->id);
-                return response()->json(['result' => 1, 'msg' => 'Verification OTP has been sent to your email.', 'data' => $user]);
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'Account does not exist with this email!']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function resendOTP(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'user_id' => 'required'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $user = AdminModel::getAdminById($request->input('user_id'));
-
-            if (!empty($user)) {
-                if ($user->status == 'Inactive' || $user->status == 'Blocked') {
-                    return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
-                }
-                $otp = generateOtp();
-                // $maildata = [
-                //     'name' => $user->first_name,
-                //     'to' => $user->email,
-                //     'msg' => "Your verification OTP for resetting password is <strong>$otp</strong>",
-                //     'subject' => 'OTP Verifiation Email For Forgot Password',
-                //     'view_name' => 'otp'
-                // ];
-                // sendMail($maildata);
-                update('admins', 'id', $user->id, ['otp' => $otp]);
-                $user = AdminModel::getAdminById($user->id);
-                return response()->json(['result' => 1, 'msg' => 'Verification OTP has been resent to your email.', 'data' => $user]);
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'No active account exist with this id!']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function verifyResetPasswordOTP(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'user_id' => 'required',
-                'otp' => 'required'
-            ], [
-                'required' => 'The :attribute field is required'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $otp = $request->input('otp');
-            $user = AdminModel::getAdminById($request->input('user_id'));
-
-            if (!empty($user)) {
-                if ($user->status == 'Inactive' || $user->status == 'Blocked') {
-                    return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
-                }
-                if ($otp === $user->otp) {
-                    update('admins', 'id', $user->id, ['reset_password_verified' => 'Yes']);
-                }
-                $user = AdminModel::getAdminById($user->id);
-                return response()->json(['result' => 1, 'msg' => 'OTP verification successful.', 'data' => $user]);
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'No active account exist with this id!']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function resetPassword(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'user_id' => 'required',
-                'password' => 'required|min:6',
-                'confirm_password' => 'required|same:password'
-            ], [
-                'required' => 'The :attribute field is required',
-                'same' => 'The :attribute field must match the password field',
-                'min' => 'The :attribute must be at least :min characters'
-            ]);
-            if ($validator->fails()) {
-                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
-            }
-
-            $user_id = $request->input('user_id');
-            $user = AdminModel::getAdminById($user_id);
-
-            if (!empty($user)) {
-                $password = Hash::make($request->input('password'));
-                $result = AdminModel::resetPassword($user_id, $password);
-                if ($result) {
-                    update('admins', 'id', $user->id, ['otp' => null, 'reset_password_verified' => 'No']);
-                    return response()->json(['result' => 1, 'msg' => 'Password reset successfully']);
-                } else {
-                    return response()->json(['result' => 0, 'msg' => 'Password already updated!']);
-                }
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'User not found!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -405,7 +231,8 @@ class AdminController extends Controller
     {
         try {
             $per_page = $request->query('per_page') ?? 10;
-            $result = AdminModel::getAllUsers($per_page);
+            $search = $request->query('search') ?? null;
+            $result = AdminModel::getAllUsers($per_page, $search);
 
             if (!empty($result)) {
                 return response()->json(['result' => 1, 'msg' => 'Users data fetched successfully', 'data' => $result]);
@@ -666,7 +493,7 @@ class AdminController extends Controller
                     'videos' => !empty($videos) ? count($videos) : 0,
                     'documents' => !empty($documents) ? count($documents) : 0,
                     'presentations' => !empty($presentations) ? count($presentations) : 0,
-                    'language' => !empty($result->language) ? json_decode($result->language) : null
+                    'language' => !empty($result->language) ? ($result->language) : null
                 ];
                 $result->videos = !empty($videos) ? $videos : null;
                 if (!empty($result->videos)) {
