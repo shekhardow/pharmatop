@@ -105,7 +105,7 @@ class UserController extends Controller
                     'logo' => !empty($logo) ? $logo : null,
                     'favicon' => !empty($favicon) ? $favicon : null,
                     'profile_image' => !empty($profile_image) ? $profile_image : null,
-                    'updated_at' => now()->format('Y-m-d H:i:s')
+                    'updated_at' => now()
                 ];
                 if ($request->has('first_name')) {
                     $data['first_name'] = $request->input('first_name');
