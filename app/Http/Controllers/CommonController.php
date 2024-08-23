@@ -136,6 +136,8 @@ class CommonController extends Controller
                 }
                 if ($otp == $user->otp) {
                     update($user->source, 'id', $user->id, ['reset_password_verified' => 'Yes']);
+                } else {
+                    return response()->json(['result' => -1, 'msg' => 'Invalid OTP!']);
                 }
                 $user = CommonModel::getUserByEmail($user->email);
                 return response()->json(['result' => 1, 'msg' => 'OTP verification successful.', 'data' => $user]);

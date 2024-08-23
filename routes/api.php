@@ -79,5 +79,6 @@ Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::post('/changePassword', [UserController::class, 'changePassword']);
     Route::get('/getAllCategories', [UserController::class, 'getAllCategories']);
     Route::get('/getAllCourses', [UserController::class, 'getAllCourses']);
-    Route::get('/getCourseById/{id?}', [UserController::class, 'getCourseById']);
+    Route::get('/getCourseByCategoryId/{id?}', [UserController::class, 'getCourseByCategoryId']);
+    Route::get('/getCourseDetailsById/{id?}', [UserController::class, 'getCourseDetailsById']);
 });

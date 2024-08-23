@@ -105,7 +105,27 @@ class UserModel extends Model
         return $result;
     }
 
-    public static function getCourseById($id)
+    public static function getCourseByCategoryId($id, $per_page, $search = null)
+    {
+        $result = DB::transaction(function () use ($id, $per_page, $search) {
+            $query = DB::table('courses')->select('*')->where('category_id', $id)->where('status', 'Active');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('course_name', 'like', "%{$search}%")
+                        ->orWhere('language', 'like', "%{$search}%")
+                        ->orWhere('price', 'like', "%{$search}%")
+                        ->orWhere('total_sold', 'like', "%{$search}%")
+                        ->orWhere('skills', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('duration', 'like', "%{$search}%");
+                });
+            }
+            return $query->paginate($per_page);
+        });
+        return $result;
+    }
+
+    public static function getCourseDetailsById($id)
     {
         $result = DB::transaction(function () use ($id) {
             return DB::table('courses')->select('*')->where('id', $id)->where('status', 'Active')->first();

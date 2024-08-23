@@ -67,7 +67,7 @@ class AdminModel extends Model
     public static function getAllUsers($per_page, $search = null)
     {
         $result = DB::transaction(function () use ($per_page, $search) {
-            $query = DB::table('users')->select('*')->where('status', '!=', 'Deleted');
+            $query = DB::table('users')->select('*')->where('status', '!=', 'Deleted')->orderBy('id', 'desc');
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
@@ -91,7 +91,7 @@ class AdminModel extends Model
     public static function getAllCategories($per_page, $search = null)
     {
         $result = DB::transaction(function () use ($per_page, $search) {
-            $query = DB::table('course_categories')->select('*')->where('status', '!=', 'Deleted');
+            $query = DB::table('course_categories')->select('*')->where('status', '!=', 'Deleted')->orderBy('id', 'desc');
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('category_name', 'like', "%{$search}%")
@@ -138,7 +138,7 @@ class AdminModel extends Model
     public static function getAllCourses($per_page, $search = null)
     {
         $result = DB::transaction(function () use ($per_page, $search) {
-            $query = DB::table('courses')->select('*')->where('status', '!=', 'Deleted');
+            $query = DB::table('courses')->select('*')->where('status', '!=', 'Deleted')->orderBy('id', 'desc');
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('course_name', 'like', "%{$search}%")

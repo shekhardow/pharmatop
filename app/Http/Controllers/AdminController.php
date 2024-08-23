@@ -58,7 +58,7 @@ class AdminController extends Controller
                 'logo' => !empty($logo) ? $logo : null,
                 'favicon' => !empty($favicon) ? $favicon : null,
                 'profile_image' => !empty($profile_image) ? $profile_image : null,
-                'updated_at' => now()->format('Y-m-d H:i:s')
+                'updated_at' => now()
             ];
             if ($request->has('first_name')) {
                 $data['first_name'] = $request->input('first_name');
@@ -183,7 +183,7 @@ class AdminController extends Controller
 
             if ($request->has('title') || $request->has('description')) {
                 $data = [
-                    'updated_at' => now()->format('Y-m-d H:i:s')
+                    'updated_at' => now()
                 ];
                 if ($request->has('title')) {
                     $data['title'] = $request->input('title');
@@ -362,7 +362,7 @@ class AdminController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
             }
 
-            $alreadyExists = select('course_categories', 'id', ['category_name' => $request->input('category_name'), ['status', '!=', 'Deleted']])->first();
+            $alreadyExists = select('course_categories', 'id', ['category_name' => $request->input('category_name'), ['id', '!=', $category_id], ['status', '!=', 'Deleted']])->first();
             if (!empty($alreadyExists)) {
                 return response()->json(['result' => -1, 'msg' => 'The category name has already been taken!']);
             }
@@ -384,7 +384,7 @@ class AdminController extends Controller
             if (!empty($result)) {
                 return response()->json(['result' => 1, 'msg' => 'Category updated successfully', 'data' => $result]);
             } else {
-                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+                return response()->json(['result' => -1, 'msg' => 'No changes were found!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -595,7 +595,7 @@ class AdminController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
             }
 
-            $alreadyExists = select('courses', 'id', ['course_name' => $request->input('course_name'), ['status', '!=', 'Deleted']])->first();
+            $alreadyExists = select('courses', 'id', ['course_name' => $request->input('course_name'), ['id', '!=', $course_id], ['status', '!=', 'Deleted']])->first();
             if (!empty($alreadyExists)) {
                 return response()->json(['result' => -1, 'msg' => 'The course name has already been taken!']);
             }
@@ -621,7 +621,7 @@ class AdminController extends Controller
             if (!empty($result)) {
                 return response()->json(['result' => 1, 'msg' => 'Course updated successfully', 'data' => $result]);
             } else {
-                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+                return response()->json(['result' => -1, 'msg' => 'No changes were found!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

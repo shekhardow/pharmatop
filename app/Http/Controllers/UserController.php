@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
+use App\Models\AdminModel;
 use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
@@ -18,17 +19,18 @@ class UserController extends Controller
                 'first_name' => 'Tushar' . $i,
                 'last_name' => 'Kumar',
                 'email' => 'tushar' . $i . '@example.com',
-                'password' => bcrypt('password')
+                'password' => Hash::make('password')
             ]);
         }
         return "Inserted {$numberOfUsers} dummy users!";
     }
+
     public function register(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string',
-                'email' => 'required|string|email|unique:users',
+                'email' => 'required|string|email',
                 'password' => 'required|min:6|string',
                 'confirm_password' => 'required_with:password|same:password'
             ], [
@@ -39,9 +41,13 @@ class UserController extends Controller
             }
 
             $user = UserModel::getUserByEmail($request->input('email'));
+            $admin = AdminModel::getAdminByEmail($request->input('email'));
 
             if (!empty($user)) {
-                return response()->json(['result' => -1, 'msg' => 'User already exists with this email!']);
+                return response()->json(['result' => -1, 'msg' => 'An account with this email already exists!']);
+            }
+            if (!empty($admin)) {
+                return response()->json(['result' => -1, 'msg' => 'An account with this email already exists!']);
             }
 
             $name = $request->input('name');
@@ -225,13 +231,35 @@ class UserController extends Controller
         }
     }
 
-    public function getCourseById($id = null)
+    public function getCourseByCategoryId(Request $request, $id = null)
     {
         try {
             if (empty($id)) {
                 return response()->json(['result' => 0, 'errors' => 'Id is required!']);
             }
-            $result = UserModel::getCourseById($id);
+            $per_page = $request->query('per_page') ?? 10;
+            $search = $request->query('search') ?? null;
+            $result = UserModel::getCourseByCategoryId($id, $per_page, $search);
+            if (!empty($result)) {
+                foreach ($result as $value) {
+                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
+                }
+                return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getCourseDetailsById($id = null)
+    {
+        try {
+            if (empty($id)) {
+                return response()->json(['result' => 0, 'errors' => 'Id is required!']);
+            }
+            $result = UserModel::getCourseDetailsById($id);
             if (!empty($result)) {
                 $result->course_image = !empty($result->course_image) ? url("uploads/admin/$result->course_image") : null;
                 $category = UserModel::getCategoryById($result->category_id);
