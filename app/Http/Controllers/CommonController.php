@@ -32,6 +32,8 @@ class CommonController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid password!']);
             }
 
+            $user->profile_image = !empty($user->profile_image) ? url("uploads/admin_profile/$user->profile_image") : null;
+
             return response()->json(['result' => 1, 'msg' => 'Logged in successfully', 'data' => $user]);
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

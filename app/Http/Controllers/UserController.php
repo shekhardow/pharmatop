@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
 use App\Models\AdminModel;
+use App\Models\CommonModel;
 use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
@@ -78,11 +79,30 @@ class UserController extends Controller
         }
     }
 
+    public function getUserDetails(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
+            $result = UserModel::getUserById($user_id);
+
+            if (!empty($result)) {
+                $result->profile_image = !empty($result->profile_image) ? url("uploads/admin/$result->profile_image") : null;
+                return response()->json(['result' => 1, 'msg' => 'User data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
     public function updateProfile(Request $request)
     {
         try {
             $token = $request->header('token');
-            $user_id = getUserByToken($token)->user_id;
+            $user_id = getUserByToken($token)->id;
 
             $rules = [];
             $messages = [
@@ -100,16 +120,10 @@ class UserController extends Controller
 
             $user = UserModel::getUserById($user_id);
 
-            $logo = $request->hasFile('logo') ? singleUpload($request, 'logo', '/uploads/admin_profile') : $user->logo;
-
-            $favicon = $request->hasFile('favicon') ? singleUpload($request, 'favicon', '/uploads/admin_profile') : $user->favicon;
-
-            $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/uploads/admin_profile') : $user->profile_image;
+            $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/admin_profile') : $user->profile_image;
 
             if ($request->has('first_name') || $request->has('last_name') || $request->has('phone') || $request->has('address')) {
                 $data = [
-                    'logo' => !empty($logo) ? $logo : null,
-                    'favicon' => !empty($favicon) ? $favicon : null,
                     'profile_image' => !empty($profile_image) ? $profile_image : null,
                     'updated_at' => now()
                 ];
@@ -140,7 +154,9 @@ class UserController extends Controller
 
                 $result = UserModel::updateProfile($user_id, $data);
                 if ($result) {
-                    return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $result]);
+                    $updatedUserDetails = CommonModel::getUserByEmail($user->email);
+                    $updatedUserDetails->profile_image = !empty($updatedUserDetails->profile_image) ? url("uploads/admin_profile/$updatedUserDetails->profile_image") : null;
+                    return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $updatedUserDetails]);
                 }
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No changes were found!']);
@@ -154,7 +170,7 @@ class UserController extends Controller
     {
         try {
             $token = $request->header('token');
-            $user_id = getUserByToken($token)->user_id;
+            $user_id = getUserByToken($token)->id;
 
             $validator = Validator::make($request->all(), [
                 'current_password' => 'required',
@@ -162,7 +178,7 @@ class UserController extends Controller
                 'confirm_password' => 'required|same:new_password'
             ]);
             if ($validator->fails()) {
-                return response()->json(['result' => 0, 'msg' => $validator->errors()->first()]);
+                return response()->json(['result' => 0, 'msg' => $validator->errors()]);
             }
 
             $user = UserModel::getUserById($user_id);
@@ -220,6 +236,8 @@ class UserController extends Controller
             $result = UserModel::getAllCourses($per_page, $search);
             if (!empty($result)) {
                 foreach ($result as $value) {
+                    $category = AdminModel::getCategoryById($value->category_id);
+                    $value->category_name = !empty($category->category_name) ? $category->category_name : null;
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
@@ -242,6 +260,8 @@ class UserController extends Controller
             $result = UserModel::getCourseByCategoryId($id, $per_page, $search);
             if (!empty($result)) {
                 foreach ($result as $value) {
+                    $category = AdminModel::getCategoryById($value->category_id);
+                    $value->category_name = !empty($category->category_name) ? $category->category_name : null;
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
@@ -296,6 +316,81 @@ class UserController extends Controller
                 return response()->json(['result' => 1, 'msg' => 'Course data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function toggleWishlist(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
+            $validator = Validator::make($request->all(), [
+                'course_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $course_id = $request->post('course_id');
+            $message = UserModel::toggleWishlist($user_id, $course_id);
+
+            if (!empty($message)) {
+                $courseDetails = UserModel::getCourseDetailsById($course_id);
+                return response()->json(['result' => 1, 'msg' => $message, 'data' => true]);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllWishlistItems(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+            $per_page = $request->query('per_page') ?? 10;
+            $search = $request->query('search') ?? null;
+            $result = UserModel::getAllWishlistItems($user_id, $per_page, $search);
+            if (!empty($result)) {
+                foreach ($result as $value) {
+                    $value->category_image = !empty($value->category_image) ? url("uploads/admin/$value->category_image") : null;
+                }
+                return response()->json(['result' => 1, 'msg' => 'Categories data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function toggleCart(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
+            $validator = Validator::make($request->all(), [
+                'course_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $course_id = $request->post('course_id');
+            $message = UserModel::toggleCart($user_id, $course_id);
+
+            if (!empty($message)) {
+                $courseDetails = UserModel::getCourseDetailsById($course_id);
+                return response()->json(['result' => 1, 'msg' => $message, 'data' => true]);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

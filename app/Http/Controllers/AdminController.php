@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use App\Models\AdminModel;
+use App\Models\CommonModel;
 
 class AdminController extends Controller
 {
@@ -50,9 +51,9 @@ class AdminController extends Controller
             $user_id = $request->input('user_id');
             $user = AdminModel::getAdminById($user_id);
 
-            $logo = $request->hasFile('logo') ? singleUpload($request, 'logo', '/uploads/admin_profile') : $user->logo;
-            $favicon = $request->hasFile('favicon') ? singleUpload($request, 'favicon', '/uploads/admin_profile') : $user->favicon;
-            $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/uploads/admin_profile') : $user->profile_image;
+            $logo = $request->hasFile('logo') ? singleUpload($request, 'logo', '/admin_profile') : $user->logo;
+            $favicon = $request->hasFile('favicon') ? singleUpload($request, 'favicon', '/admin_profile') : $user->favicon;
+            $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/admin_profile') : $user->profile_image;
 
             $data = [
                 'logo' => !empty($logo) ? $logo : null,
@@ -87,7 +88,9 @@ class AdminController extends Controller
 
             $result = AdminModel::updateProfile($user_id, $data);
             if ($result) {
-                return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $result]);
+                $updatedUserDetails = CommonModel::getUserByEmail($user->email);
+                $updatedUserDetails->profile_image = !empty($updatedUserDetails->profile_image) ? url("uploads/admin_profile/$updatedUserDetails->profile_image") : null;
+                return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $updatedUserDetails]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Failed to update profile!']);
             }
