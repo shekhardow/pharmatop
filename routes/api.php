@@ -78,11 +78,17 @@ Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::get('/getUserDetails', [UserController::class, 'getUserDetails']);
     Route::post('/updateProfile', [UserController::class, 'updateProfile']);
     Route::post('/changePassword', [UserController::class, 'changePassword']);
+
     Route::get('/getAllCategories', [UserController::class, 'getAllCategories']);
     Route::get('/getAllCourses', [UserController::class, 'getAllCourses']);
     Route::get('/getCourseByCategoryId/{id?}', [UserController::class, 'getCourseByCategoryId']);
     Route::get('/getCourseDetailsById/{id?}', [UserController::class, 'getCourseDetailsById']);
+
     Route::post('/toggleWishlist', [UserController::class, 'toggleWishlist']);
     Route::get('/getAllWishlistItems', [UserController::class, 'getAllWishlistItems']);
+
     Route::post('/toggleCart', [UserController::class, 'toggleCart']);
+    Route::get('/getAllCartItems', [UserController::class, 'getAllCartItems']);
+    Route::post('/checkout', [UserController::class, 'checkout']);
+    Route::get('/getAllUserPurchasedCourses', [UserController::class, 'getAllUserPurchasedCourses']);
 });

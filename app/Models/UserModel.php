@@ -105,6 +105,22 @@ class UserModel extends Model
         return $result;
     }
 
+    public static function isCourseInWishlist($id, $user_id)
+    {
+        $result = DB::transaction(function () use ($id, $user_id) {
+            return DB::table('user_wishlists')->where('course_id', $id)->where('user_id', $user_id)->where('wishlist_status', 'Added')->exists();
+        });
+        return $result;
+    }
+
+    public static function isCourseInCart($id, $user_id)
+    {
+        $result = DB::transaction(function () use ($id, $user_id) {
+            return DB::table('user_carts')->where('course_id', $id)->where('user_id', $user_id)->where('cart_status', 'Added')->exists();
+        });
+        return $result;
+    }
+
     public static function getCourseByCategoryId($id, $per_page, $search = null)
     {
         $result = DB::transaction(function () use ($id, $per_page, $search) {
@@ -192,6 +208,70 @@ class UserModel extends Model
                 $message = 'Added to cart';
             }
             return $message;
+        });
+        return $result;
+    }
+
+    public static function getAllCartItems($user_id, $per_page, $search = null)
+    {
+        $result = DB::transaction(function () use ($user_id, $per_page, $search) {
+            $courseIds = DB::table('user_carts')->where('user_id', $user_id)->where('cart_status', 'Added')->where('status', 'Active')->pluck('course_id');
+            $query = DB::table('courses')->select('*')->whereIn('id', $courseIds)->where('status', 'Active');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('course_name', 'like', "%{$search}%")
+                        ->orWhere('language', 'like', "%{$search}%")
+                        ->orWhere('price', 'like', "%{$search}%")
+                        ->orWhere('total_sold', 'like', "%{$search}%")
+                        ->orWhere('skills', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('duration', 'like', "%{$search}%");
+                });
+            }
+            return $query->paginate($per_page);
+        });
+        return $result;
+    }
+
+    public static function checkout($user_id, $data, $course_ids, $course_prices)
+    {
+        $result = DB::transaction(function () use ($user_id, $data, $course_ids, $course_prices) {
+            $id = DB::table('user_payments')->insertGetId($data);
+            if (!empty($id)) {
+                $purchasedCourses = [];
+                foreach ($course_ids as $index => $course_id) {
+                    $purchasedCourses[] = [
+                        'user_id' => $user_id,
+                        'course_id' => $course_id,
+                        'purchased_amount' => $course_prices[$index],
+                        'payment_id' => $id
+                    ];
+                }
+                DB::table('user_purchased_courses')->insert($purchasedCourses);
+                return $id;
+            }
+            return false;
+        });
+        return $result;
+    }
+
+    public static function getAllUserPurchasedCourses($user_id, $per_page, $search = null)
+    {
+        $result = DB::transaction(function () use ($user_id, $per_page, $search) {
+            $courseIds = DB::table('user_purchased_courses')->where('user_id', $user_id)->where('status', 'Active')->pluck('course_id');
+            $query = DB::table('courses')->select('*')->whereIn('id', $courseIds)->where('status', 'Active');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('course_name', 'like', "%{$search}%")
+                        ->orWhere('language', 'like', "%{$search}%")
+                        ->orWhere('price', 'like', "%{$search}%")
+                        ->orWhere('total_sold', 'like', "%{$search}%")
+                        ->orWhere('skills', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('duration', 'like', "%{$search}%");
+                });
+            }
+            return $query->paginate($per_page);
         });
         return $result;
     }

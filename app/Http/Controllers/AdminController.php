@@ -412,6 +412,11 @@ class AdminController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
             }
 
+            $hasCourses = AdminModel::hasCourses($category_id);
+            if ($hasCourses) {
+                return response()->json(['result' => -1, 'msg' => 'Cannot delete category. It has associated courses.']);
+            }
+
             $result = AdminModel::deleteCategory($category_id);
 
             if (!empty($result)) {

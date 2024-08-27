@@ -231,11 +231,18 @@ class UserController extends Controller
     public function getAllCourses(Request $request)
     {
         try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
             $per_page = $request->query('per_page') ?? 10;
             $search = $request->query('search') ?? null;
             $result = UserModel::getAllCourses($per_page, $search);
             if (!empty($result)) {
                 foreach ($result as $value) {
+                    $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
+                    $value->is_in_wishlist = $isInWishlist;
+                    $isInCart = UserModel::isCourseInCart($value->id, $user_id);
+                    $value->is_in_cart = $isInCart;
                     $category = AdminModel::getCategoryById($value->category_id);
                     $value->category_name = !empty($category->category_name) ? $category->category_name : null;
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
@@ -252,6 +259,9 @@ class UserController extends Controller
     public function getCourseByCategoryId(Request $request, $id = null)
     {
         try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
             if (empty($id)) {
                 return response()->json(['result' => 0, 'errors' => 'Id is required!']);
             }
@@ -260,6 +270,10 @@ class UserController extends Controller
             $result = UserModel::getCourseByCategoryId($id, $per_page, $search);
             if (!empty($result)) {
                 foreach ($result as $value) {
+                    $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
+                    $value->is_in_wishlist = $isInWishlist;
+                    $isInCart = UserModel::isCourseInCart($value->id, $user_id);
+                    $value->is_in_cart = $isInCart;
                     $category = AdminModel::getCategoryById($value->category_id);
                     $value->category_name = !empty($category->category_name) ? $category->category_name : null;
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
@@ -273,14 +287,21 @@ class UserController extends Controller
         }
     }
 
-    public function getCourseDetailsById($id = null)
+    public function getCourseDetailsById(Request $request, $id = null)
     {
         try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
             if (empty($id)) {
                 return response()->json(['result' => 0, 'errors' => 'Id is required!']);
             }
             $result = UserModel::getCourseDetailsById($id);
             if (!empty($result)) {
+                $isInWishlist = UserModel::isCourseInWishlist($result->id, $user_id);
+                $result->is_in_wishlist = $isInWishlist;
+                $isInCart = UserModel::isCourseInCart($result->id, $user_id);
+                $result->is_in_cart = $isInCart;
                 $result->course_image = !empty($result->course_image) ? url("uploads/admin/$result->course_image") : null;
                 $category = UserModel::getCategoryById($result->category_id);
                 $result->category_name = !empty($category->category_name) ? $category->category_name : null;
@@ -359,9 +380,13 @@ class UserController extends Controller
             $result = UserModel::getAllWishlistItems($user_id, $per_page, $search);
             if (!empty($result)) {
                 foreach ($result as $value) {
-                    $value->category_image = !empty($value->category_image) ? url("uploads/admin/$value->category_image") : null;
+                    $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
+                    $value->is_in_wishlist = $isInWishlist;
+                    $isInCart = UserModel::isCourseInCart($value->id, $user_id);
+                    $value->is_in_cart = $isInCart;
+                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
-                return response()->json(['result' => 1, 'msg' => 'Categories data fetched successfully', 'data' => $result]);
+                return response()->json(['result' => 1, 'msg' => 'Wishlist data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
             }
@@ -391,6 +416,95 @@ class UserController extends Controller
             if (!empty($message)) {
                 $courseDetails = UserModel::getCourseDetailsById($course_id);
                 return response()->json(['result' => 1, 'msg' => $message, 'data' => true]);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllCartItems(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+            $per_page = $request->query('per_page') ?? 10;
+            $search = $request->query('search') ?? null;
+            $result = UserModel::getAllCartItems($user_id, $per_page, $search);
+            if (!empty($result)) {
+                foreach ($result as $value) {
+                    $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
+                    $value->is_in_wishlist = $isInWishlist;
+                    $isInCart = UserModel::isCourseInCart($value->id, $user_id);
+                    $value->is_in_cart = $isInCart;
+                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
+                }
+                return response()->json(['result' => 1, 'msg' => 'Cart data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function checkout(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
+            $validator = Validator::make($request->all(), [
+                'course_ids' => 'required',
+                'course_prices' => 'required',
+                'total_amount' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $course_ids = $request->post('course_ids');
+            $course_prices = $request->post('course_prices');
+            $total_amount = $request->post('total_amount');
+
+            $data = [
+                'user_id' => $user_id,
+                'course_ids' => !empty($course_ids) ? json_encode($course_ids) : null,
+                'name' => !empty($request->post('name')) ? $request->post('name') : null,
+                'email' => !empty($request->post('email')) ? $request->post('email') : null,
+                'payment_method' => !empty($request->post('payment_method')) ? $request->post('payment_method') : null,
+                'currency' => !empty($request->post('currency')) ? $request->post('currency') : null,
+                'amount' => !empty($total_amount) ? $total_amount : null
+            ];
+
+            $result = UserModel::checkout($user_id, $data, $course_ids, $course_prices);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Payment successful', 'data' => true]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllUserPurchasedCourses(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+            $per_page = $request->query('per_page') ?? 10;
+            $search = $request->query('search') ?? null;
+            $result = UserModel::getAllUserPurchasedCourses($user_id, $per_page, $search);
+            if (!empty($result)) {
+                foreach ($result as $value) {
+                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
+                }
+                return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

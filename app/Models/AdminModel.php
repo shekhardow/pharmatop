@@ -127,6 +127,14 @@ class AdminModel extends Model
         return $result;
     }
 
+    public static function hasCourses($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            return DB::table('courses')->where('category_id', $id)->where('status', '!=', 'Deleted')->exists();
+        });
+        return $result;
+    }
+
     public static function deleteCategory($id)
     {
         $result = DB::transaction(function () use ($id) {
