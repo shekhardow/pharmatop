@@ -209,15 +209,34 @@ class AdminController extends Controller
     public function getDashboardData()
     {
         try {
+            $total_users = select('users', 'id', [['status', '!=', 'Deleted']])->count();
+            $total_courses = select('courses', 'id', [['status', '!=', 'Deleted']])->count();
+            $earnings = select('user_payments', 'amount', [['status', '!=', 'Deleted']])->sum('amount');
+            $top_category = select('course_categories', 'category_name', [['status', '!=', 'Deleted'], ['upvoted', '=', 'Yes']])->first();
+            $top_course = select('courses', 'course_name', [['status', '!=', 'Deleted'], ['upvoted', '=', 'Yes']])->first();
+            $active_users = select('users', 'id', ['status' => 'Active'])->count();
+            $active_users_percentage = !empty($active_users) ? ($active_users * 100) / $total_users : 0;
+            $new_users = select('users', 'id', [['status', '!=', 'Deleted'], ['created_at', '>=', date('Y-m-d H:i:s', strtotime('-1 day'))]])->count();
+            $new_users_percentage = !empty($new_users) ? ($new_users * 100) / $total_users : 0;
+
+            $monthly_earnings = [];
+            for ($month = 1; $month <= 12; $month++) {
+                $start_date = date('Y-m-d H:i:s', mktime(0, 0, 0, $month, 1, date('Y')));
+                $end_date = date('Y-m-t 23:59:59', mktime(0, 0, 0, $month, 1, date('Y')));
+                $earnings_for_month = select('user_payments', 'amount', [['status', '!=', 'Deleted'], ['created_at', '>=', $start_date], ['created_at', '<=', $end_date]])->sum('amount');
+                $month_name = date('F', mktime(0, 0, 0, $month, 10));
+                $monthly_earnings[$month_name] = !empty($earnings_for_month) ? $earnings_for_month : 0;
+            }
+
             $result = [
-                'total_users' => "200k",
-                'total_courses' => "25",
-                'earnings' => "$75k",
-                'top_category' => "Pharmaceutical",
-                'top_course' => "pharmaceutics",
-                'active_users' => "85%",
-                'new_users' => "15%",
-                'revenue' => null
+                'total_users' => !empty($total_users) ? number_format($total_users) : 0,
+                'total_courses' => !empty($total_courses) ? number_format($total_courses) : 0,
+                'earnings' => !empty($earnings) ? number_format($earnings) : 0,
+                'top_category' => !empty($top_category) ? $top_category->category_name : 0,
+                'top_course' => !empty($top_course) ? $top_course->course_name : 0,
+                'active_users' => !empty($active_users_percentage) ? number_format($active_users_percentage) : 0,
+                'new_users' => !empty($new_users_percentage) ? number_format($new_users_percentage) : 0,
+                'revenue' => $monthly_earnings
             ];
 
             if (!empty($result)) {
@@ -238,6 +257,9 @@ class AdminController extends Controller
             $result = AdminModel::getAllUsers($per_page, $search);
 
             if (!empty($result)) {
+                foreach ($result as $value) {
+                    $value->profile_image = !empty($value->profile_image) ? url("uploads/user/$value->profile_image") : null;
+                }
                 return response()->json(['result' => 1, 'msg' => 'Users data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -257,6 +279,7 @@ class AdminController extends Controller
             $result = AdminModel::getUserById($id);
 
             if (!empty($result)) {
+                $result->profile_image = !empty($result->profile_image) ? url("uploads/user/$result->profile_image") : null;
                 return response()->json(['result' => 1, 'msg' => 'User data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -429,6 +452,36 @@ class AdminController extends Controller
         }
     }
 
+    public function upvoteCategory(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'category_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $category_id = $request->input('category_id');
+            $category = select('course_categories', '*', ['id' => $category_id])->first();
+            if (empty($category)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            $result = AdminModel::upvoteCategory($category_id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Category upvoted successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Already upvoted!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
     public function getAllCourses(Request $request)
     {
         try {
@@ -490,6 +543,7 @@ class AdminController extends Controller
             $result = AdminModel::getCourseById($id);
 
             if (!empty($result)) {
+                $result->enrolled_users = AdminModel::getEnrolledUsers($result->id);
                 $result->course_image = !empty($result->course_image) ? url("uploads/admin/$result->course_image") : null;
                 $category = AdminModel::getCategoryById($result->category_id);
                 $result->category_name = !empty($category->category_name) ? $category->category_name : null;
@@ -660,6 +714,36 @@ class AdminController extends Controller
                 return response()->json(['result' => 1, 'msg' => 'Course deleted successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Already deleted!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function upvoteCourse(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'course_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $course_id = $request->input('course_id');
+            $course = select('courses', '*', ['id' => $course_id])->first();
+            if (empty($course)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            $result = AdminModel::upvoteCourse($course_id);
+
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => 'Course upvoted successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Already upvoted!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

@@ -12,19 +12,19 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    public function insertDummyUsers()
-    {
-        $numberOfUsers = 100;
-        for ($i = 1; $i <= $numberOfUsers; $i++) {
-            DB::table('users')->insert([
-                'first_name' => 'Tushar' . $i,
-                'last_name' => 'Kumar',
-                'email' => 'tushar' . $i . '@example.com',
-                'password' => Hash::make('password')
-            ]);
-        }
-        return "Inserted {$numberOfUsers} dummy users!";
-    }
+    // public function insertDummyUsers()
+    // {
+    //     $numberOfUsers = 100;
+    //     for ($i = 1; $i <= $numberOfUsers; $i++) {
+    //         DB::table('users')->insert([
+    //             'first_name' => 'Tushar' . $i,
+    //             'last_name' => 'Kumar',
+    //             'email' => 'tushar' . $i . '@example.com',
+    //             'password' => Hash::make('password')
+    //         ]);
+    //     }
+    //     return "Inserted {$numberOfUsers} dummy users!";
+    // }
 
     public function register(Request $request)
     {
@@ -120,7 +120,7 @@ class UserController extends Controller
 
             $user = UserModel::getUserById($user_id);
 
-            $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/admin_profile') : $user->profile_image;
+            $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/user') : $user->profile_image;
 
             if ($request->has('first_name') || $request->has('last_name') || $request->has('phone') || $request->has('address')) {
                 $data = [
@@ -155,7 +155,7 @@ class UserController extends Controller
                 $result = UserModel::updateProfile($user_id, $data);
                 if ($result) {
                     $updatedUserDetails = CommonModel::getUserByEmail($user->email);
-                    $updatedUserDetails->profile_image = !empty($updatedUserDetails->profile_image) ? url("uploads/admin_profile/$updatedUserDetails->profile_image") : null;
+                    $updatedUserDetails->profile_image = !empty($updatedUserDetails->profile_image) ? url("uploads/user/$updatedUserDetails->profile_image") : null;
                     return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $updatedUserDetails]);
                 }
             } else {
@@ -209,6 +209,33 @@ class UserController extends Controller
         }
     }
 
+    public function getStaticContent(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'content_type' => ['required', 'in:Terms,Privacy,About']
+            ], [
+                'required' => 'The :attribute field is required',
+                'in' => 'The :attribute field must be either Terms, Privacy or About'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $content_type = $request->query('content_type');
+
+            $result = UserModel::getStaticContent($content_type);
+
+            if ($result) {
+                return response()->json(['result' => 1, 'msg' => "$content_type content fetched successfully", 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No content found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
     public function getAllCategories(Request $request)
     {
         try {
@@ -228,21 +255,29 @@ class UserController extends Controller
         }
     }
 
-    public function getAllCourses(Request $request)
+    public function getAllCourses(Request $request, $guest = null)
     {
         try {
-            $token = $request->header('token');
-            $user_id = getUserByToken($token)->id;
+            $user_id = null;
+            if (!$guest) {
+                $token = $request->header('token');
+                $user_id = getUserByToken($token)->id;
+            }
 
             $per_page = $request->query('per_page') ?? 10;
             $search = $request->query('search') ?? null;
             $result = UserModel::getAllCourses($per_page, $search);
             if (!empty($result)) {
                 foreach ($result as $value) {
-                    $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
-                    $value->is_in_wishlist = $isInWishlist;
-                    $isInCart = UserModel::isCourseInCart($value->id, $user_id);
-                    $value->is_in_cart = $isInCart;
+                    if (!$guest) {
+                        $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
+                        $value->is_in_wishlist = $isInWishlist;
+                        $isInCart = UserModel::isCourseInCart($value->id, $user_id);
+                        $value->is_in_cart = $isInCart;
+                    } else {
+                        $value->is_in_wishlist = false;
+                        $value->is_in_cart = false;
+                    }
                     $category = AdminModel::getCategoryById($value->category_id);
                     $value->category_name = !empty($category->category_name) ? $category->category_name : null;
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
@@ -256,11 +291,14 @@ class UserController extends Controller
         }
     }
 
-    public function getCourseByCategoryId(Request $request, $id = null)
+    public function getCourseByCategoryId(Request $request, $id = null, $guest = null)
     {
         try {
-            $token = $request->header('token');
-            $user_id = getUserByToken($token)->id;
+            $user_id = null;
+            if (!$guest) {
+                $token = $request->header('token');
+                $user_id = getUserByToken($token)->id;
+            }
 
             if (empty($id)) {
                 return response()->json(['result' => 0, 'errors' => 'Id is required!']);
@@ -270,10 +308,15 @@ class UserController extends Controller
             $result = UserModel::getCourseByCategoryId($id, $per_page, $search);
             if (!empty($result)) {
                 foreach ($result as $value) {
-                    $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
-                    $value->is_in_wishlist = $isInWishlist;
-                    $isInCart = UserModel::isCourseInCart($value->id, $user_id);
-                    $value->is_in_cart = $isInCart;
+                    if (!$guest) {
+                        $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
+                        $value->is_in_wishlist = $isInWishlist;
+                        $isInCart = UserModel::isCourseInCart($value->id, $user_id);
+                        $value->is_in_cart = $isInCart;
+                    } else {
+                        $value->is_in_wishlist = false;
+                        $value->is_in_cart = false;
+                    }
                     $category = AdminModel::getCategoryById($value->category_id);
                     $value->category_name = !empty($category->category_name) ? $category->category_name : null;
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
@@ -287,21 +330,29 @@ class UserController extends Controller
         }
     }
 
-    public function getCourseDetailsById(Request $request, $id = null)
+    public function getCourseDetailsById(Request $request, $id = null, $guest = null)
     {
         try {
-            $token = $request->header('token');
-            $user_id = getUserByToken($token)->id;
+            $user_id = null;
+            if (!$guest) {
+                $token = $request->header('token');
+                $user_id = getUserByToken($token)->id;
+            }
 
             if (empty($id)) {
                 return response()->json(['result' => 0, 'errors' => 'Id is required!']);
             }
             $result = UserModel::getCourseDetailsById($id);
             if (!empty($result)) {
-                $isInWishlist = UserModel::isCourseInWishlist($result->id, $user_id);
-                $result->is_in_wishlist = $isInWishlist;
-                $isInCart = UserModel::isCourseInCart($result->id, $user_id);
-                $result->is_in_cart = $isInCart;
+                if (!$guest) {
+                    $isInWishlist = UserModel::isCourseInWishlist($result->id, $user_id);
+                    $result->is_in_wishlist = $isInWishlist;
+                    $isInCart = UserModel::isCourseInCart($result->id, $user_id);
+                    $result->is_in_cart = $isInCart;
+                } else {
+                    $result->is_in_wishlist = false;
+                    $result->is_in_cart = false;
+                }
                 $result->course_image = !empty($result->course_image) ? url("uploads/admin/$result->course_image") : null;
                 $category = UserModel::getCategoryById($result->category_id);
                 $result->category_name = !empty($category->category_name) ? $category->category_name : null;
@@ -310,10 +361,11 @@ class UserController extends Controller
                 $documents = select('course_documents', '*', ['course_id' => $id, 'document_type' => 'pdf', 'status' => 'Active']);
                 $presentations = select('course_documents', '*', ['course_id' => $id, 'document_type' => 'ppt', 'status' => 'Active']);
                 $result->features = [
+                    'language' => !empty($result->language) ? $result->language : null,
                     'videos' => !empty($videos) ? count($videos) : 0,
-                    'documents' => !empty($documents) ? count($documents) : 0,
                     'presentations' => !empty($presentations) ? count($presentations) : 0,
-                    'language' => !empty($result->language) ? json_decode($result->language) : null
+                    'documents' => !empty($documents) ? count($documents) : 0,
+                    'certificate_on_completion' => true
                 ];
                 $result->videos = !empty($videos) ? $videos : null;
                 if (!empty($result->videos)) {
@@ -362,7 +414,6 @@ class UserController extends Controller
             $message = UserModel::toggleWishlist($user_id, $course_id);
 
             if (!empty($message)) {
-                $courseDetails = UserModel::getCourseDetailsById($course_id);
                 return response()->json(['result' => 1, 'msg' => $message, 'data' => true]);
             }
         } catch (\Exception $e) {
@@ -414,7 +465,6 @@ class UserController extends Controller
             $message = UserModel::toggleCart($user_id, $course_id);
 
             if (!empty($message)) {
-                $courseDetails = UserModel::getCourseDetailsById($course_id);
                 return response()->json(['result' => 1, 'msg' => $message, 'data' => true]);
             }
         } catch (\Exception $e) {
@@ -500,11 +550,64 @@ class UserController extends Controller
             $result = UserModel::getAllUserPurchasedCourses($user_id, $per_page, $search);
             if (!empty($result)) {
                 foreach ($result as $value) {
+                    $videos = select('course_module_videos', '*', ['course_id' => $value->id, 'status' => 'Active']);
+                    $documents = select('course_documents', '*', ['course_id' => $value->id, 'document_type' => 'pdf', 'status' => 'Active']);
+                    $presentations = select('course_documents', '*', ['course_id' => $value->id, 'document_type' => 'ppt', 'status' => 'Active']);
+                    $value->features = [
+                        'language' => !empty($value->language) ? $value->language : null,
+                        'videos' => !empty($videos) ? count($videos) : 0,
+                        'presentations' => !empty($presentations) ? count($presentations) : 0,
+                        'documents' => !empty($documents) ? count($documents) : 0,
+                        'certificate_on_completion' => true
+                    ];
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function completeVideo(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
+            $validator = Validator::make($request->all(), [
+                'video_id' => 'required',
+                'course_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $video_id = $request->input('video_id');
+            $course_id = $request->input('course_id');
+            $video = select('course_module_videos', '*', ['id' => $video_id])->first();
+            if (empty($video)) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid Id!']);
+            }
+
+            $data = [
+                'user_id' => $user_id,
+                'course_id' => $course_id,
+                'video_id' => $video_id,
+                'completion_status' => 'Completed',
+                'completion_date' => now()
+            ];
+
+            $result = UserModel::completeVideo($user_id, $video_id, $course_id, $data);
+
+            if ($result) {
+                return response()->json(['result' => 1, 'msg' => 'Video completed', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Already completed!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

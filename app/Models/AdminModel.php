@@ -143,6 +143,15 @@ class AdminModel extends Model
         return $result;
     }
 
+    public static function upvoteCategory($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            DB::table('course_categories')->where('upvoted', 'Yes')->update(['upvoted' => 'No']);
+            return DB::table('course_categories')->where('id', $id)->update(['upvoted' => 'Yes']);
+        });
+        return $result;
+    }
+
     public static function getAllCourses($per_page, $search = null)
     {
         $result = DB::transaction(function () use ($per_page, $search) {
@@ -171,6 +180,14 @@ class AdminModel extends Model
         return $result;
     }
 
+    public static function getEnrolledUsers($course_id)
+    {
+        $result = DB::transaction(function () use ($course_id) {
+            return DB::table('user_purchased_courses')->where('course_id', $course_id)->where('status', 'Active')->distinct()->count('user_id');
+        });
+        return $result;
+    }
+
     public static function addCourse($data)
     {
         $result = DB::transaction(function () use ($data) {
@@ -191,6 +208,15 @@ class AdminModel extends Model
     {
         $result = DB::transaction(function () use ($id) {
             return DB::table('courses')->where('id', $id)->update(['status' => 'Deleted']);
+        });
+        return $result;
+    }
+
+    public static function upvoteCourse($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            DB::table('courses')->where('upvoted', 'Yes')->update(['upvoted' => 'No']);
+            return DB::table('courses')->where('id', $id)->update(['upvoted' => 'Yes']);
         });
         return $result;
     }

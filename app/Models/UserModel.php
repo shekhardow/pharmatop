@@ -62,6 +62,14 @@ class UserModel extends Model
         return $result;
     }
 
+    public static function getStaticContent($content_type)
+    {
+        $result = DB::transaction(function () use ($content_type) {
+            return DB::table('static_contents')->select('*')->where('content_type', $content_type)->where('status', 'Active')->first();
+        });
+        return $result;
+    }
+
     public static function getAllCategories($per_page, $search = null)
     {
         $result = DB::transaction(function () use ($per_page, $search) {
@@ -272,6 +280,48 @@ class UserModel extends Model
                 });
             }
             return $query->paginate($per_page);
+        });
+        return $result;
+    }
+
+    public static function completeVideo($user_id, $video_id, $course_id, $data)
+    {
+        $result = DB::transaction(function () use ($user_id, $video_id, $course_id, $data) {
+            $videoExists = DB::table('user_course_videos_status')
+                ->where('user_id', $user_id)
+                ->where('video_id', $video_id)
+                ->where('course_id', $course_id)
+                ->exists();
+            if ($videoExists) {
+                DB::table('user_course_videos_status')
+                    ->where('user_id', $user_id)
+                    ->where('video_id', $video_id)
+                    ->where('course_id', $course_id)
+                    ->update($data);
+            } else {
+                DB::table('user_course_videos_status')->insert($data);
+            }
+
+            $totalVideos = DB::table('course_module_videos')->where('course_id', $course_id)->count();
+            $completedVideos = DB::table('user_course_videos_status')
+                ->where('user_id', $user_id)
+                ->where('course_id', $course_id)
+                ->where('completion_status', 'Completed')
+                ->count();
+            $completionPercentage = ($completedVideos / $totalVideos) * 100;
+            $courseCompletionData = [
+                'user_id' => $user_id,
+                'course_id' => $course_id,
+                'completion_status' => $completionPercentage == 100 ? 'Completed' : 'Incomplete',
+                'completion_date' => $completionPercentage == 100 ? now() : null,
+                'completion_percentage' => round($completionPercentage, 2)
+            ];
+            $courseStatusExists = DB::table('user_courses_status')->where('user_id', $user_id)->where('course_id', $course_id)->exists();
+            if ($courseStatusExists) {
+                return DB::table('user_courses_status')->where('user_id', $user_id)->where('course_id', $course_id)->update($courseCompletionData);
+            } else {
+                return DB::table('user_courses_status')->insert($courseCompletionData);
+            }
         });
         return $result;
     }

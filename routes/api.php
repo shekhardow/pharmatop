@@ -59,12 +59,14 @@ Route::group(['prefix' => 'admin'], function () {
     Route::post('/addCategory', [AdminController::class, 'addCategory']);
     Route::post('/updateCategory', [AdminController::class, 'updateCategory']);
     Route::post('/deleteCategory', [AdminController::class, 'deleteCategory']);
+    Route::post('/upvoteCategory', [AdminController::class, 'upvoteCategory']);
 
     Route::get('/getAllCourses', [AdminController::class, 'getAllCourses']);
     Route::get('/getCourseById/{id?}', [AdminController::class, 'getCourseById']);
     Route::post('/addCourse', [AdminController::class, 'addCourse']);
     Route::post('/updateCourse', [AdminController::class, 'updateCourse']);
     Route::post('/deleteCourse', [AdminController::class, 'deleteCourse']);
+    Route::post('/upvoteCourse', [AdminController::class, 'upvoteCourse']);
     Route::post('/addModuleVideo', [AdminController::class, 'addModuleVideo']);
     Route::post('/deleteModuleVideo', [AdminController::class, 'deleteModuleVideo']);
     Route::post('/addModuleDocument', [AdminController::class, 'addModuleDocument']);
@@ -72,7 +74,12 @@ Route::group(['prefix' => 'admin'], function () {
 });
 
 Route::post('user/register', [UserController::class, 'register']);
-Route::get('user/insertDummyUsers', [UserController::class, 'insertDummyUsers']);
+// Route::get('user/insert', [UserController::class, 'insertDummyUsers']);
+Route::get('user/getStaticContent', [UserController::class, 'getStaticContent']);
+Route::get('user/getAllCategories/{guest}', [UserController::class, 'getAllCategories'])->where('guest', 'guest');
+Route::get('user/getAllCourses/{guest}', [UserController::class, 'getAllCourses'])->where('guest', 'guest');
+Route::get('user/getCourseByCategoryId/{id?}/{guest}', [UserController::class, 'getCourseByCategoryId'])->where('guest', 'guest');
+Route::get('user/getCourseDetailsById/{id?}/{guest}', [UserController::class, 'getCourseDetailsById'])->where('guest', 'guest');
 
 Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::get('/getUserDetails', [UserController::class, 'getUserDetails']);
@@ -91,4 +98,6 @@ Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::get('/getAllCartItems', [UserController::class, 'getAllCartItems']);
     Route::post('/checkout', [UserController::class, 'checkout']);
     Route::get('/getAllUserPurchasedCourses', [UserController::class, 'getAllUserPurchasedCourses']);
+
+    Route::post('/completeVideo', [UserController::class, 'completeVideo']);
 });
