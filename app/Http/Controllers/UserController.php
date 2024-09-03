@@ -9,6 +9,8 @@ use App\Models\UserModel;
 use App\Models\AdminModel;
 use App\Models\CommonModel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 class UserController extends Controller
 {
@@ -370,6 +372,8 @@ class UserController extends Controller
                 $result->videos = !empty($videos) ? $videos : null;
                 if (!empty($result->videos)) {
                     foreach ($result->videos as $video) {
+                        $isVideoCompleted = UserModel::isVideoCompleted($video->id, $user_id);
+                        $video->is_video_completed = $isVideoCompleted;
                         $video->thumbnail = !empty($video->thumbnail) ? url("uploads/admin/$video->thumbnail") : null;
                         $video->video = !empty($video->video) ? url("uploads/admin/$video->video") : null;
                     }
@@ -462,10 +466,10 @@ class UserController extends Controller
             }
 
             $course_id = $request->post('course_id');
-            $message = UserModel::toggleCart($user_id, $course_id);
+            $result = UserModel::toggleCart($user_id, $course_id);
 
-            if (!empty($message)) {
-                return response()->json(['result' => 1, 'msg' => $message, 'data' => true]);
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => $result->message, 'data' => ['cart_count' => $result->cart_count]]);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -560,6 +564,8 @@ class UserController extends Controller
                         'documents' => !empty($documents) ? count($documents) : 0,
                         'certificate_on_completion' => true
                     ];
+                    $course_completion_progress = select('user_courses_status', 'completion_percentage', ['course_id' => $value->id, 'user_id' => $user_id, 'status' => 'Active'])->first();
+                    $value->course_completion_progress = !empty($course_completion_progress->completion_percentage) ? $course_completion_progress->completion_percentage : 0;
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
@@ -611,6 +617,28 @@ class UserController extends Controller
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function generateCertificate($courseId)
+    {
+        $student_name = 'Shekhar Pandey';
+        $course_name = 'Laravel Advanced';
+        $completion_date = now()->format('F j, Y');
+
+        $pdf = PDF::loadView('pdf.certificate', compact('student_name', 'course_name', 'completion_date'));
+
+        $filePath = 'public/certificate.pdf';
+
+        Storage::put($filePath, $pdf->output());
+
+        if (Storage::exists($filePath)) {
+            return response()->json([
+                'message' => 'Certificate generated and saved successfully',
+                'file_path' => Storage::url($filePath),
+            ]);
+        } else {
+            return response()->json(['message' => 'Failed to save the PDF.'], 500);
         }
     }
 }

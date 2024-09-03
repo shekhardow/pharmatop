@@ -32,7 +32,11 @@ class CommonController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid password!']);
             }
 
-            $user->profile_image = !empty($user->profile_image) ? url("uploads/admin_profile/$user->profile_image") : null;
+            if ($user->source = 'admins') {
+                $user->profile_image = !empty($user->profile_image) ? url("uploads/admin_profile/$user->profile_image") : null;
+            } else {
+                $user->profile_image = !empty($user->profile_image) ? url("uploads/user/$user->profile_image") : null;
+            }
 
             return response()->json(['result' => 1, 'msg' => 'Logged in successfully', 'data' => $user]);
         } catch (\Exception $e) {
@@ -59,14 +63,14 @@ class CommonController extends Controller
                     return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
                 }
                 $otp = generateOtp();
-                // $maildata = [
-                //     'name' => $user->first_name,
-                //     'to' => $user->email,
-                //     'msg' => "Your verification OTP for resetting password is <strong>$otp</strong>",
-                //     'subject' => 'OTP Verifiation Email For Forgot Password',
-                //     'view_name' => 'otp'
-                // ];
-                // sendMail($maildata);
+                $maildata = [
+                    'name' => $user->first_name,
+                    'to' => $user->email,
+                    'msg' => "Verification otp for reset password is <strong>$otp</strong>",
+                    'subject' => 'OTP For Forgot Password',
+                    'view_name' => 'otp'
+                ];
+                sendMail($maildata);
                 update($user->source, 'id', $user->id, ['otp' => $otp]);
                 $user = CommonModel::getUserByEmail($user->email);
                 return response()->json(['result' => 1, 'msg' => 'Verification OTP has been sent to your email.', 'data' => $user]);
@@ -97,14 +101,14 @@ class CommonController extends Controller
                     return response()->json(['result' => -2, 'msg' => "This account is $user->status!"]);
                 }
                 $otp = generateOtp();
-                // $maildata = [
-                //     'name' => $user->first_name,
-                //     'to' => $user->email,
-                //     'msg' => "Your verification OTP for resetting password is <strong>$otp</strong>",
-                //     'subject' => 'OTP Verifiation Email For Forgot Password',
-                //     'view_name' => 'otp'
-                // ];
-                // sendMail($maildata);
+                $maildata = [
+                    'name' => $user->first_name,
+                    'to' => $user->email,
+                    'msg' => "Verification otp for reset password is <strong>$otp</strong>",
+                    'subject' => 'OTP For Forgot Password',
+                    'view_name' => 'otp'
+                ];
+                sendMail($maildata);
                 update($user->source, 'id', $user->id, ['otp' => $otp]);
                 $user = CommonModel::getUserByEmail($user->email);
                 return response()->json(['result' => 1, 'msg' => 'Verification OTP has been resent to your email.', 'data' => $user]);

@@ -101,3 +101,5 @@ Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
 
     Route::post('/completeVideo', [UserController::class, 'completeVideo']);
 });
+
+Route::post('user/course/{courseId}/complete', [UserController::class, 'generateCertificate']);
