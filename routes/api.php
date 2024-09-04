@@ -80,6 +80,9 @@ Route::get('user/getAllCategories/{guest}', [UserController::class, 'getAllCateg
 Route::get('user/getAllCourses/{guest}', [UserController::class, 'getAllCourses'])->where('guest', 'guest');
 Route::get('user/getCourseByCategoryId/{id?}/{guest}', [UserController::class, 'getCourseByCategoryId'])->where('guest', 'guest');
 Route::get('user/getCourseDetailsById/{id?}/{guest}', [UserController::class, 'getCourseDetailsById'])->where('guest', 'guest');
+Route::get('user/getAllCountries', [UserController::class, 'getAllCountries']);
+Route::get('user/getAllStatesByCountry/{id?}', [UserController::class, 'getAllStatesByCountry']);
+Route::get('user/getAllCitiesByState/{id?}', [UserController::class, 'getAllCitiesByState']);
 
 Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::get('/getUserDetails', [UserController::class, 'getUserDetails']);
@@ -96,6 +99,7 @@ Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
 
     Route::post('/toggleCart', [UserController::class, 'toggleCart']);
     Route::get('/getAllCartItems', [UserController::class, 'getAllCartItems']);
+
     Route::post('/checkout', [UserController::class, 'checkout']);
     Route::get('/getAllUserPurchasedCourses', [UserController::class, 'getAllUserPurchasedCourses']);
 

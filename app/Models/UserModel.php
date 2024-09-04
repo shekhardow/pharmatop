@@ -254,6 +254,30 @@ class UserModel extends Model
         return $result;
     }
 
+    public static function getAllCountries()
+    {
+        $result = DB::transaction(function () {
+            return DB::table('countries')->select('*')->where('status', 'Active')->get();
+        });
+        return $result;
+    }
+
+    public static function getAllStatesByCountry($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            return DB::table('states')->select('*')->where('country_id', $id)->where('status', 'Active')->get();
+        });
+        return $result;
+    }
+
+    public static function getAllCitiesByState($id)
+    {
+        $result = DB::transaction(function () use ($id) {
+            return DB::table('cities')->select('*')->where('state_id', $id)->where('status', 'Active')->get();
+        });
+        return $result;
+    }
+
     public static function checkout($user_id, $data, $course_ids, $course_prices)
     {
         $result = DB::transaction(function () use ($user_id, $data, $course_ids, $course_prices) {

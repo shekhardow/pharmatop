@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\UserModel;
 use App\Models\AdminModel;
 use App\Models\CommonModel;
+use Stripe\Stripe;
+use Stripe\PaymentIntent;
 use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
@@ -491,6 +493,54 @@ class UserController extends Controller
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Cart data fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllCountries()
+    {
+        try {
+            $result = UserModel::getAllCountries();
+            if ($result) {
+                return response()->json(['result' => 1, 'msg' => 'Countries fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllStatesByCountry($country_id = null)
+    {
+        try {
+            if (empty($country_id)) {
+                return response()->json(['result' => 0, 'errors' => 'Country Id is required!']);
+            }
+            $result = UserModel::getAllStatesByCountry($country_id);
+            if ($result) {
+                return response()->json(['result' => 1, 'msg' => 'States fetched successfully', 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No data found!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllCitiesByState($state_id = null)
+    {
+        try {
+            if (empty($state_id)) {
+                return response()->json(['result' => 0, 'errors' => 'State Id is required!']);
+            }
+            $result = UserModel::getAllCitiesByState($state_id);
+            if ($result) {
+                return response()->json(["result" => 1, "msg" => "Cities fetched successfully", 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
             }
