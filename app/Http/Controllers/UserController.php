@@ -9,8 +9,6 @@ use App\Models\UserModel;
 use App\Models\AdminModel;
 use App\Models\CommonModel;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 class UserController extends Controller
 {
@@ -617,28 +615,6 @@ class UserController extends Controller
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
-        }
-    }
-
-    public function generateCertificate($courseId)
-    {
-        $student_name = 'Shekhar Pandey';
-        $course_name = 'Laravel Advanced';
-        $completion_date = now()->format('F j, Y');
-
-        $pdf = PDF::loadView('pdf.certificate', compact('student_name', 'course_name', 'completion_date'));
-
-        $filePath = 'public/certificate.pdf';
-
-        Storage::put($filePath, $pdf->output());
-
-        if (Storage::exists($filePath)) {
-            return response()->json([
-                'message' => 'Certificate generated and saved successfully',
-                'file_path' => Storage::url($filePath),
-            ]);
-        } else {
-            return response()->json(['message' => 'Failed to save the PDF.'], 500);
         }
     }
 }
