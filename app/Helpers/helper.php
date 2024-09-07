@@ -127,10 +127,22 @@ function singleUpload($request, $file_name, $path)
 {
     if ($request->hasfile($file_name)) {
         $file = $request->file($file_name);
-        $name = time() . '.' . $file->extension();
-        sleep(1);
+        $file_extension = $file->extension();
+        $name = time() . '.' . $file_extension;
         $file->move(base_path('uploads/') . $path, $name);
-        return $name;
+        $video_extensions = ['mp4', 'avi', 'mov', 'mkv'];
+        if (in_array($file_extension, $video_extensions)) {
+            $videoPath = base_path('uploads/') . $path . '/' . $name;
+            $getID3 = new \getID3;
+            $fileInfo = $getID3->analyze($videoPath);
+            if (isset($fileInfo['playtime_seconds'])) {
+                $duration = $fileInfo['playtime_seconds'];
+                return (object) ['name' => $name, 'duration' => $duration];
+            } else {
+                return (object) ['name' => $name];
+            }
+        }
+        return (object) ['name' => $name];
     } else {
         return false;
     }
@@ -159,7 +171,7 @@ function singleAwsUpload(Request $request, $file_name, $path)
     if ($request->hasfile($file_name)) {
         $file = $request->file($file_name);
         $path = Storage::disk('s3')->put($path, $file);
-        return $path ? Storage::disk('s3')->url($path) : false;
+        return $path ? Storage::disk('s3')->path($path) : false;
     }
     return false;
 }
@@ -170,7 +182,7 @@ function multipleAwsUploads(Request $request, $file_name, $path)
     if ($request->hasfile($file_name)) {
         $data = array_map(function ($file) use ($path) {
             $filePath = Storage::disk('s3')->put($path, $file);
-            return Storage::disk('s3')->url($filePath);
+            return Storage::disk('s3')->path($filePath);
         }, $request->file($file_name));
 
         return !empty($data) ? $data : false;

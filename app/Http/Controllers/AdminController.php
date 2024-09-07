@@ -51,9 +51,12 @@ class AdminController extends Controller
             $user_id = $request->input('user_id');
             $user = AdminModel::getAdminById($user_id);
 
-            $logo = $request->hasFile('logo') ? singleUpload($request, 'logo', '/admin_profile') : $user->logo;
-            $favicon = $request->hasFile('favicon') ? singleUpload($request, 'favicon', '/admin_profile') : $user->favicon;
-            $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/admin_profile') : $user->profile_image;
+            $logoResult = $request->hasFile('logo') ? singleUpload($request, 'logo', '/admin_profile') : $user->logo;
+            $logo = $logoResult->name ?? $user->logo;
+            $faviconResult = $request->hasFile('favicon') ? singleUpload($request, 'favicon', '/admin_profile') : $user->favicon;
+            $favicon = $faviconResult->name ?? $user->favicon;
+            $profileImageResult = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/admin_profile') : $user->profile_image;
+            $profile_image = $profileImageResult->name ?? $user->profile_image;
 
             $data = [
                 'logo' => !empty($logo) ? $logo : null,
@@ -345,7 +348,8 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('category_image')) {
-                $category_image = singleUpload($request, 'category_image', 'admin');
+                $imgResult = singleUpload($request, 'category_image', 'admin');
+                $category_image = $imgResult->name;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload category image!']);
             }
@@ -394,7 +398,8 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('category_image')) {
-                $category_image = singleUpload($request, 'category_image', 'admin');
+                $imgResult = singleUpload($request, 'category_image', 'admin');
+                $category_image = $imgResult->name;
             } else {
                 $category_image = $category->category_image;
             }
@@ -607,7 +612,8 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('course_image')) {
-                $course_image = singleUpload($request, 'course_image', 'admin');
+                $imgResult = singleUpload($request, 'course_image', 'admin');
+                $course_image = $imgResult->name;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload course image!']);
             }
@@ -663,7 +669,8 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('course_image')) {
-                $course_image = singleUpload($request, 'course_image', 'admin');
+                $imgResult = singleUpload($request, 'course_image', 'admin');
+                $course_image = $imgResult->name;
             } else {
                 $course_image = $course->course_image;
             }
@@ -770,13 +777,15 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('thumbnail')) {
-                $thumbnail = singleUpload($request, 'thumbnail', 'admin');
+                $imgResult = singleUpload($request, 'thumbnail', 'admin');
+                $thumbnail = $imgResult->name;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload thumbnail image!']);
             }
 
             if ($request->hasfile('video')) {
-                $video = singleUpload($request, 'video', 'admin');
+                $videoResult = singleUpload($request, 'video', 'admin');
+                $video = $videoResult->name;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload video!']);
             }
@@ -786,7 +795,8 @@ class AdminController extends Controller
                 'title' => !empty($request->input('title')) ? $request->input('title') : null,
                 'description' => !empty($request->input('description')) ? $request->input('description') : null,
                 'thumbnail' => !empty($thumbnail) ? $thumbnail : null,
-                'video' => !empty($video) ? $video : null
+                'video' => !empty($video) ? $video : null,
+                'duration' => !empty($videoResult->duration) ? $videoResult->duration : null
             ];
 
             $result = AdminModel::addModuleVideo($data);
@@ -855,7 +865,8 @@ class AdminController extends Controller
                 if ($request->input('document_type') === 'pdf' && $extension !== 'pdf') {
                     return response()->json(['result' => -1, 'msg' => 'File type and document_type do not match! Please upload a PDF.']);
                 }
-                $document = singleUpload($request, 'document', 'admin');
+                $imgResult = singleUpload($request, 'document', 'admin');
+                $document = $imgResult->name;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload document!']);
             }

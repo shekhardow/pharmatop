@@ -11,6 +11,9 @@ use App\Models\CommonModel;
 use Stripe\Stripe;
 use Stripe\PaymentIntent;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 class UserController extends Controller
 {
@@ -122,7 +125,8 @@ class UserController extends Controller
 
             $user = UserModel::getUserById($user_id);
 
-            $profile_image = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/user') : $user->profile_image;
+            $profileImageResult = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/user') : $user->profile_image;
+            $profile_image = $profileImageResult->name ?? $user->profile_image;
 
             if ($request->has('first_name') || $request->has('last_name') || $request->has('phone') || $request->has('address')) {
                 $data = [
@@ -549,6 +553,38 @@ class UserController extends Controller
         }
     }
 
+    public function createPaymentIntent(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
+            $validator = Validator::make($request->all(), [
+                'total_amount' => 'required',
+                'currency' => 'required'
+            ], [
+                'required' => 'The :attribute field is required',
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $total_amount = $request->post('total_amount');
+            $currency = $request->post('currency');
+
+            Stripe::setApiKey(env('STRIPE_SECRET'));
+
+            $paymentIntent = PaymentIntent::create([
+                'amount' => $total_amount * 100,
+                'currency' => $currency
+            ]);
+
+            return response()->json(['result' => 1, 'msg' => 'PaymentIntent created', 'payment_intent_id' => $paymentIntent->id, 'client_secret' => $paymentIntent->client_secret]);
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
     public function checkout(Request $request)
     {
         try {
@@ -558,7 +594,8 @@ class UserController extends Controller
             $validator = Validator::make($request->all(), [
                 'course_ids' => 'required',
                 'course_prices' => 'required',
-                'total_amount' => 'required'
+                'total_amount' => 'required',
+                'payment_intent_id' => 'required'
             ], [
                 'required' => 'The :attribute field is required'
             ]);
@@ -569,14 +606,28 @@ class UserController extends Controller
             $course_ids = $request->post('course_ids');
             $course_prices = $request->post('course_prices');
             $total_amount = $request->post('total_amount');
+            $payment_intent_id = $request->post('payment_intent_id');
+
+            Stripe::setApiKey(env('STRIPE_SECRET'));
+
+            $paymentIntent = PaymentIntent::retrieve($payment_intent_id);
+
+            // if ($paymentIntent->status != 'succeeded') {
+            //     return response()->json(['result' => -1, 'msg' => 'Payment failed!']);
+            // }
 
             $data = [
                 'user_id' => $user_id,
                 'course_ids' => !empty($course_ids) ? json_encode($course_ids) : null,
                 'name' => !empty($request->post('name')) ? $request->post('name') : null,
                 'email' => !empty($request->post('email')) ? $request->post('email') : null,
-                'payment_method' => !empty($request->post('payment_method')) ? $request->post('payment_method') : null,
-                'currency' => !empty($request->post('currency')) ? $request->post('currency') : null,
+                'address' => !empty($request->post('address')) ? $request->post('address') : null,
+                'country' => !empty($request->post('country')) ? $request->post('country') : null,
+                'state' => !empty($request->post('state')) ? $request->post('state') : null,
+                'city' => !empty($request->post('city')) ? $request->post('city') : null,
+                'pincode' => !empty($request->post('pincode')) ? $request->post('pincode') : null,
+                'payment_method' => $paymentIntent->payment_method,
+                'currency' => $paymentIntent->currency,
                 'amount' => !empty($total_amount) ? $total_amount : null
             ];
 
@@ -612,8 +663,9 @@ class UserController extends Controller
                         'documents' => !empty($documents) ? count($documents) : 0,
                         'certificate_on_completion' => true
                     ];
-                    $course_completion_progress = select('user_courses_status', 'completion_percentage', ['course_id' => $value->id, 'user_id' => $user_id, 'status' => 'Active'])->first();
-                    $value->course_completion_progress = !empty($course_completion_progress->completion_percentage) ? $course_completion_progress->completion_percentage : 0;
+                    $isCertificateGenerated = UserModel::isCertificateGenerated($value->id, $user_id);
+                    $value->is_certificate_generated = $isCertificateGenerated;
+                    $value->course_completion_progress = !empty($value->completion_percentage) ? $value->completion_percentage : 0;
                     $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
@@ -662,6 +714,68 @@ class UserController extends Controller
                 return response()->json(['result' => 1, 'msg' => 'Video completed', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Already completed!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function generateCertificate(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
+            $validator = Validator::make($request->all(), [
+                'course_id' => 'required'
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $course_id = $request->input('course_id');
+
+            $certificate = select('user_certificates', 'id', ['course_id' => $course_id, 'user_id' => $user_id])->first();
+            if (!empty($certificate)) {
+                return response()->json(['result' => -1, 'msg' => 'Certificate already generated!']);
+            }
+
+            $user = UserModel::getUserById($user_id);
+            $course = select('courses', '*', ['id' => $course_id])->first();
+
+            $student_name = $user->first_name . ' ' . $user->last_name;
+            $course_name = !empty($course->course_name) ? $course->course_name : '';
+            $completion_date = now()->format('dS F, Y');
+
+            $pdf = PDF::loadView('pdf.certificate', compact('student_name', 'course_name', 'completion_date'));
+
+            $fileName = 'certificate.pdf';
+            $filePath = 'certificates/' . $fileName;
+            Storage::disk('public')->put($filePath, $pdf->output());
+
+            if (Storage::disk('public')->exists($filePath)) {
+                $tempFilePath = Storage::disk('public')->path($filePath);
+                $destinationPath = base_path('uploads/user');
+                $newFileName = time() . '.pdf';
+                if (File::move($tempFilePath, $destinationPath . '/' . $newFileName)) {
+                    $data = [
+                        'user_id' => $user_id,
+                        'course_id' => $course_id,
+                        'certificate' => $newFileName,
+                        'completed_on' => now(),
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ];
+                    UserModel::generateCertificate($data);
+                    $file = asset('uploads/user/' . $newFileName);
+                    return response()->json(['result' => 1, 'msg' => 'Certificate generated successfully', 'data' => ['file' => $file]]);
+                } else {
+                    return response()->json(['result' => -1, 'msg' => 'Failed to generate the pdf!']);
+                }
+            } else {
+                return response()->json(['message' => 'Failed to save the PDF.'], 500);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

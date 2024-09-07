@@ -300,20 +300,38 @@ class UserModel extends Model
         return $result;
     }
 
+    public static function isCertificateGenerated($id, $user_id)
+    {
+        $result = DB::transaction(function () use ($id, $user_id) {
+            return DB::table('user_certificates')->where('course_id', $id)->where('user_id', $user_id)->where('status', 'Active')->exists();
+        });
+        return $result;
+    }
+
     public static function getAllUserPurchasedCourses($user_id, $per_page, $search = null)
     {
         $result = DB::transaction(function () use ($user_id, $per_page, $search) {
-            $courseIds = DB::table('user_purchased_courses')->where('user_id', $user_id)->where('status', 'Active')->pluck('course_id');
-            $query = DB::table('courses')->select('*')->whereIn('id', $courseIds)->where('status', 'Active');
+            $courseIds = DB::table('user_purchased_courses')
+                ->where('user_id', $user_id)
+                ->where('status', 'Active')
+                ->pluck('course_id');
+            $query = DB::table('courses')
+                ->select('courses.*', 'user_courses_status.completion_status', 'user_courses_status.completion_date', 'user_courses_status.completion_percentage')
+                ->whereIn('courses.id', $courseIds)
+                ->where('courses.status', 'Active')
+                ->leftJoin('user_courses_status', function ($join) use ($user_id) {
+                    $join->on('courses.id', '=', 'user_courses_status.course_id')
+                        ->where('user_courses_status.user_id', '=', $user_id);
+                });
             if ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('course_name', 'like', "%{$search}%")
-                        ->orWhere('language', 'like', "%{$search}%")
-                        ->orWhere('price', 'like', "%{$search}%")
-                        ->orWhere('total_sold', 'like', "%{$search}%")
-                        ->orWhere('skills', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%")
-                        ->orWhere('duration', 'like', "%{$search}%");
+                    $q->where('courses.course_name', 'like', "%{$search}%")
+                        ->orWhere('courses.language', 'like', "%{$search}%")
+                        ->orWhere('courses.price', 'like', "%{$search}%")
+                        ->orWhere('courses.total_sold', 'like', "%{$search}%")
+                        ->orWhere('courses.skills', 'like', "%{$search}%")
+                        ->orWhere('courses.description', 'like', "%{$search}%")
+                        ->orWhere('courses.duration', 'like', "%{$search}%");
                 });
             }
             return $query->paginate($per_page);
@@ -369,6 +387,14 @@ class UserModel extends Model
             } else {
                 return DB::table('user_courses_status')->insert($courseCompletionData);
             }
+        });
+        return $result;
+    }
+
+    public static function generateCertificate($data)
+    {
+        $result = DB::transaction(function () use ($data) {
+            return DB::table('user_certificates')->insert($data);
         });
         return $result;
     }

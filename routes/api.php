@@ -100,8 +100,10 @@ Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::post('/toggleCart', [UserController::class, 'toggleCart']);
     Route::get('/getAllCartItems', [UserController::class, 'getAllCartItems']);
 
+    Route::post('/createPaymentIntent', [UserController::class, 'createPaymentIntent']);
     Route::post('/checkout', [UserController::class, 'checkout']);
     Route::get('/getAllUserPurchasedCourses', [UserController::class, 'getAllUserPurchasedCourses']);
 
     Route::post('/completeVideo', [UserController::class, 'completeVideo']);
+    Route::post('/generateCertificate', [UserController::class, 'generateCertificate']);
 });
