@@ -93,7 +93,6 @@ class UserController extends Controller
             $result = UserModel::getUserById($user_id);
 
             if (!empty($result)) {
-                $result->profile_image = !empty($result->profile_image) ? url("uploads/admin/$result->profile_image") : null;
                 return response()->json(['result' => 1, 'msg' => 'User data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -125,8 +124,8 @@ class UserController extends Controller
 
             $user = UserModel::getUserById($user_id);
 
-            $profileImageResult = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/user') : $user->profile_image;
-            $profile_image = $profileImageResult->name ?? $user->profile_image;
+            $profileImageResult = $request->hasFile('profile_image') ? singleAwsUpload($request, 'profile_image') : $user->profile_image;
+            $profile_image = $profileImageResult->url ?? $user->profile_image;
 
             if ($request->has('first_name') || $request->has('last_name') || $request->has('phone') || $request->has('address')) {
                 $data = [
@@ -161,7 +160,6 @@ class UserController extends Controller
                 $result = UserModel::updateProfile($user_id, $data);
                 if ($result) {
                     $updatedUserDetails = CommonModel::getUserByEmail($user->email);
-                    $updatedUserDetails->profile_image = !empty($updatedUserDetails->profile_image) ? url("uploads/user/$updatedUserDetails->profile_image") : null;
                     return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $updatedUserDetails]);
                 }
             } else {
@@ -249,9 +247,6 @@ class UserController extends Controller
             $search = $request->query('search') ?? null;
             $result = UserModel::getAllCategories($per_page, $search);
             if (!empty($result)) {
-                foreach ($result as $value) {
-                    $value->category_image = !empty($value->category_image) ? url("uploads/admin/$value->category_image") : null;
-                }
                 return response()->json(['result' => 1, 'msg' => 'Categories data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -276,17 +271,19 @@ class UserController extends Controller
             if (!empty($result)) {
                 foreach ($result as $value) {
                     if (!$guest) {
+                        $isPurchased = UserModel::isCoursePurchased($value->id, $user_id);
+                        $value->is_purchased = $isPurchased;
                         $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
                         $value->is_in_wishlist = $isInWishlist;
                         $isInCart = UserModel::isCourseInCart($value->id, $user_id);
                         $value->is_in_cart = $isInCart;
                     } else {
+                        $value->is_purchased = false;
                         $value->is_in_wishlist = false;
                         $value->is_in_cart = false;
                     }
                     $category = AdminModel::getCategoryById($value->category_id);
                     $value->category_name = !empty($category->category_name) ? $category->category_name : null;
-                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
             } else {
@@ -315,17 +312,19 @@ class UserController extends Controller
             if (!empty($result)) {
                 foreach ($result as $value) {
                     if (!$guest) {
+                        $isPurchased = UserModel::isCoursePurchased($value->id, $user_id);
+                        $value->is_purchased = $isPurchased;
                         $isInWishlist = UserModel::isCourseInWishlist($value->id, $user_id);
                         $value->is_in_wishlist = $isInWishlist;
                         $isInCart = UserModel::isCourseInCart($value->id, $user_id);
                         $value->is_in_cart = $isInCart;
                     } else {
+                        $value->is_purchased = false;
                         $value->is_in_wishlist = false;
                         $value->is_in_cart = false;
                     }
                     $category = AdminModel::getCategoryById($value->category_id);
                     $value->category_name = !empty($category->category_name) ? $category->category_name : null;
-                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
             } else {
@@ -351,15 +350,17 @@ class UserController extends Controller
             $result = UserModel::getCourseDetailsById($id);
             if (!empty($result)) {
                 if (!$guest) {
+                    $isPurchased = UserModel::isCoursePurchased($result->id, $user_id);
+                    $result->is_purchased = $isPurchased;
                     $isInWishlist = UserModel::isCourseInWishlist($result->id, $user_id);
                     $result->is_in_wishlist = $isInWishlist;
                     $isInCart = UserModel::isCourseInCart($result->id, $user_id);
                     $result->is_in_cart = $isInCart;
                 } else {
+                    $result->is_purchased = false;
                     $result->is_in_wishlist = false;
                     $result->is_in_cart = false;
                 }
-                $result->course_image = !empty($result->course_image) ? url("uploads/admin/$result->course_image") : null;
                 $category = UserModel::getCategoryById($result->category_id);
                 $result->category_name = !empty($category->category_name) ? $category->category_name : null;
                 $result->skills = !empty($result->skills) ? json_decode($result->skills) : null;
@@ -378,22 +379,10 @@ class UserController extends Controller
                     foreach ($result->videos as $video) {
                         $isVideoCompleted = UserModel::isVideoCompleted($video->id, $user_id);
                         $video->is_video_completed = $isVideoCompleted;
-                        $video->thumbnail = !empty($video->thumbnail) ? url("uploads/admin/$video->thumbnail") : null;
-                        $video->video = !empty($video->video) ? url("uploads/admin/$video->video") : null;
                     }
                 }
                 $result->documents = !empty($documents) ? $documents : null;
-                if (!empty($result->documents)) {
-                    foreach ($result->documents as $document) {
-                        $document->document = !empty($document->document) ? url("uploads/admin/$document->document") : null;
-                    }
-                }
                 $result->presentations = !empty($presentations) ? $presentations : null;
-                if (!empty($result->presentations)) {
-                    foreach ($result->presentations as $presentation) {
-                        $presentation->document = !empty($presentation->document) ? url("uploads/admin/$presentation->document") : null;
-                    }
-                }
                 return response()->json(['result' => 1, 'msg' => 'Course data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -443,7 +432,6 @@ class UserController extends Controller
                     $value->is_in_wishlist = $isInWishlist;
                     $isInCart = UserModel::isCourseInCart($value->id, $user_id);
                     $value->is_in_cart = $isInCart;
-                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Wishlist data fetched successfully', 'data' => $result]);
             } else {
@@ -470,7 +458,17 @@ class UserController extends Controller
             }
 
             $course_id = $request->post('course_id');
-            $result = UserModel::toggleCart($user_id, $course_id);
+            $localCartItems = $request->query('local_cart_items') ?? false;
+            if ($localCartItems) {
+                $isInCart = UserModel::isCourseInCart($course_id, $user_id);
+                if (!$isInCart) {
+                    $result = UserModel::toggleCart($user_id, $course_id);
+                } else {
+                    return response()->json(['result' => -1, 'msg' => "Already Added"]);
+                }
+            } else {
+                $result = UserModel::toggleCart($user_id, $course_id);
+            }
 
             if (!empty($result)) {
                 return response()->json(['result' => 1, 'msg' => $result->message, 'data' => ['cart_count' => $result->cart_count]]);
@@ -494,7 +492,6 @@ class UserController extends Controller
                     $value->is_in_wishlist = $isInWishlist;
                     $isInCart = UserModel::isCourseInCart($value->id, $user_id);
                     $value->is_in_cart = $isInCart;
-                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Cart data fetched successfully', 'data' => $result]);
             } else {
@@ -666,7 +663,6 @@ class UserController extends Controller
                     $isCertificateGenerated = UserModel::isCertificateGenerated($value->id, $user_id);
                     $value->is_certificate_generated = $isCertificateGenerated;
                     $value->course_completion_progress = !empty($value->completion_percentage) ? $value->completion_percentage : 0;
-                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
             } else {

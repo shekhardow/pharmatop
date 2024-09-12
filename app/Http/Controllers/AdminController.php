@@ -51,12 +51,12 @@ class AdminController extends Controller
             $user_id = $request->input('user_id');
             $user = AdminModel::getAdminById($user_id);
 
-            $logoResult = $request->hasFile('logo') ? singleUpload($request, 'logo', '/admin_profile') : $user->logo;
-            $logo = $logoResult->name ?? $user->logo;
-            $faviconResult = $request->hasFile('favicon') ? singleUpload($request, 'favicon', '/admin_profile') : $user->favicon;
-            $favicon = $faviconResult->name ?? $user->favicon;
-            $profileImageResult = $request->hasFile('profile_image') ? singleUpload($request, 'profile_image', '/admin_profile') : $user->profile_image;
-            $profile_image = $profileImageResult->name ?? $user->profile_image;
+            $logoResult = $request->hasFile('logo') ? singleAwsUpload($request, 'logo') : $user->logo;
+            $logo = $logoResult->url ?? $user->logo;
+            $faviconResult = $request->hasFile('favicon') ? singleAwsUpload($request, 'favicon') : $user->favicon;
+            $favicon = $faviconResult->url ?? $user->favicon;
+            $profileImageResult = $request->hasFile('profile_image') ? singleAwsUpload($request, 'profile_image') : $user->profile_image;
+            $profile_image = $profileImageResult->url ?? $user->profile_image;
 
             $data = [
                 'logo' => !empty($logo) ? $logo : null,
@@ -92,7 +92,6 @@ class AdminController extends Controller
             $result = AdminModel::updateProfile($user_id, $data);
             if ($result) {
                 $updatedUserDetails = CommonModel::getUserByEmail($user->email);
-                $updatedUserDetails->profile_image = !empty($updatedUserDetails->profile_image) ? url("uploads/admin_profile/$updatedUserDetails->profile_image") : null;
                 return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $updatedUserDetails]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Failed to update profile!']);
@@ -260,9 +259,6 @@ class AdminController extends Controller
             $result = AdminModel::getAllUsers($per_page, $search);
 
             if (!empty($result)) {
-                foreach ($result as $value) {
-                    $value->profile_image = !empty($value->profile_image) ? url("uploads/user/$value->profile_image") : null;
-                }
                 return response()->json(['result' => 1, 'msg' => 'Users data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -282,7 +278,6 @@ class AdminController extends Controller
             $result = AdminModel::getUserById($id);
 
             if (!empty($result)) {
-                $result->profile_image = !empty($result->profile_image) ? url("uploads/user/$result->profile_image") : null;
                 return response()->json(['result' => 1, 'msg' => 'User data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -299,9 +294,6 @@ class AdminController extends Controller
             $search = $request->query('search') ?? null;
             $result = AdminModel::getAllCategories($per_page, $search);
             if (!empty($result)) {
-                foreach ($result as $value) {
-                    $value->category_image = !empty($value->category_image) ? url("uploads/admin/$value->category_image") : null;
-                }
                 return response()->json(['result' => 1, 'msg' => 'Categories data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -319,7 +311,6 @@ class AdminController extends Controller
             }
             $result = AdminModel::getCategoryById($id);
             if (!empty($result)) {
-                $result->category_image = !empty($result->category_image) ? url("uploads/admin/$result->category_image") : null;
                 return response()->json(['result' => 1, 'msg' => 'Category data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -348,8 +339,8 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('category_image')) {
-                $imgResult = singleUpload($request, 'category_image', 'admin');
-                $category_image = $imgResult->name;
+                $imgResult = singleAwsUpload($request, 'category_image');
+                $category_image = $imgResult->url;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload category image!']);
             }
@@ -398,8 +389,8 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('category_image')) {
-                $imgResult = singleUpload($request, 'category_image', 'admin');
-                $category_image = $imgResult->name;
+                $imgResult = singleAwsUpload($request, 'category_image');
+                $category_image = $imgResult->url;
             } else {
                 $category_image = $category->category_image;
             }
@@ -496,7 +487,6 @@ class AdminController extends Controller
 
             if (!empty($result)) {
                 foreach ($result as $value) {
-                    $value->course_image = !empty($value->course_image) ? url("uploads/admin/$value->course_image") : null;
                     $category = AdminModel::getCategoryById($value->category_id);
                     $value->category_name = !empty($category->category_name) ? $category->category_name : null;
                     $value->skills = !empty($value->skills) ? json_decode($value->skills) : null;
@@ -510,24 +500,8 @@ class AdminController extends Controller
                         'language' => !empty($value->language) ? json_decode($value->language) : null
                     ];
                     $value->videos = !empty($videos) ? $videos : null;
-                    if (!empty($value->videos)) {
-                        foreach ($value->videos as $video) {
-                            $video->thumbnail = !empty($video->thumbnail) ? url("uploads/admin/$video->thumbnail") : null;
-                            $video->video = !empty($video->video) ? url("uploads/admin/$video->video") : null;
-                        }
-                    }
                     $value->documents = !empty($documents) ? $documents : null;
-                    if (!empty($value->documents)) {
-                        foreach ($value->documents as $document) {
-                            $document->document = !empty($document->document) ? url("uploads/admin/$document->document") : null;
-                        }
-                    }
                     $value->presentations = !empty($presentations) ? $presentations : null;
-                    if (!empty($value->presentations)) {
-                        foreach ($value->presentations as $presentation) {
-                            $presentation->document = !empty($presentation->document) ? url("uploads/admin/$presentation->document") : null;
-                        }
-                    }
                 }
                 return response()->json(['result' => 1, 'msg' => 'Courses data fetched successfully', 'data' => $result]);
             } else {
@@ -549,7 +523,6 @@ class AdminController extends Controller
 
             if (!empty($result)) {
                 $result->enrolled_users = AdminModel::getEnrolledUsers($result->id);
-                $result->course_image = !empty($result->course_image) ? url("uploads/admin/$result->course_image") : null;
                 $category = AdminModel::getCategoryById($result->category_id);
                 $result->category_name = !empty($category->category_name) ? $category->category_name : null;
                 $result->skills = !empty($result->skills) ? json_decode($result->skills) : null;
@@ -563,24 +536,8 @@ class AdminController extends Controller
                     'language' => !empty($result->language) ? ($result->language) : null
                 ];
                 $result->videos = !empty($videos) ? $videos : null;
-                if (!empty($result->videos)) {
-                    foreach ($result->videos as $video) {
-                        $video->thumbnail = !empty($video->thumbnail) ? url("uploads/admin/$video->thumbnail") : null;
-                        $video->video = !empty($video->video) ? url("uploads/admin/$video->video") : null;
-                    }
-                }
                 $result->documents = !empty($documents) ? $documents : null;
-                if (!empty($result->documents)) {
-                    foreach ($result->documents as $document) {
-                        $document->document = !empty($document->document) ? url("uploads/admin/$document->document") : null;
-                    }
-                }
                 $result->presentations = !empty($presentations) ? $presentations : null;
-                if (!empty($result->presentations)) {
-                    foreach ($result->presentations as $presentation) {
-                        $presentation->document = !empty($presentation->document) ? url("uploads/admin/$presentation->document") : null;
-                    }
-                }
                 return response()->json(['result' => 1, 'msg' => 'Course data fetched successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
@@ -612,8 +569,8 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('course_image')) {
-                $imgResult = singleUpload($request, 'course_image', 'admin');
-                $course_image = $imgResult->name;
+                $imgResult = singleAwsUpload($request, 'course_image');
+                $course_image = $imgResult->url;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload course image!']);
             }
@@ -669,8 +626,8 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('course_image')) {
-                $imgResult = singleUpload($request, 'course_image', 'admin');
-                $course_image = $imgResult->name;
+                $imgResult = singleAwsUpload($request, 'course_image');
+                $course_image = $imgResult->url;
             } else {
                 $course_image = $course->course_image;
             }
@@ -777,15 +734,15 @@ class AdminController extends Controller
             }
 
             if ($request->hasfile('thumbnail')) {
-                $imgResult = singleUpload($request, 'thumbnail', 'admin');
-                $thumbnail = $imgResult->name;
+                $imgResult = singleAwsUpload($request, 'thumbnail');
+                $thumbnail = $imgResult->url;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload thumbnail image!']);
             }
 
             if ($request->hasfile('video')) {
-                $videoResult = singleUpload($request, 'video', 'admin');
-                $video = $videoResult->name;
+                $videoResult = singleAwsUpload($request, 'video');
+                $video = $videoResult->url;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload video!']);
             }
@@ -865,8 +822,8 @@ class AdminController extends Controller
                 if ($request->input('document_type') === 'pdf' && $extension !== 'pdf') {
                     return response()->json(['result' => -1, 'msg' => 'File type and document_type do not match! Please upload a PDF.']);
                 }
-                $imgResult = singleUpload($request, 'document', 'admin');
-                $document = $imgResult->name;
+                $imgResult = singleAwsUpload($request, 'document');
+                $document = $imgResult->url;
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Upload document!']);
             }
@@ -914,6 +871,37 @@ class AdminController extends Controller
                 return response()->json(['result' => 1, 'msg' => 'Document deleted successfully', 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Already deleted!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function getAllBillingInfo(Request $request)
+    {
+        try {
+            $per_page = $request->query('per_page') ?? 10;
+            $search = $request->query('search') ?? null;
+            $result = AdminModel::getAllBillingInfo($per_page, $search);
+            if ($result) {
+                foreach ($result as $row) {
+                    $course_names = [];
+                    $course_ids = json_decode($row->course_ids);
+                    if (!empty($course_ids)) {
+                        foreach ($course_ids as $id) {
+                            $name = AdminModel::getCourseById($id);
+                            if (!empty($name->course_name)) {
+                                $course_names[] = $name->course_name;
+                            }
+                        }
+                    }
+                    $row->course_names = $course_names;
+                    $user_name = AdminModel::getUserById($row->user_id);
+                    $row->user_name = !empty($user_name) ? $user_name->first_name . ' ' . $user_name->last_name : null;
+                }
+                return response()->json(['result' => 1, 'msg' => "Billing info fetched successfully", 'data' => $result]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'No content found!']);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

@@ -113,6 +113,14 @@ class UserModel extends Model
         return $result;
     }
 
+    public static function isCoursePurchased($id, $user_id)
+    {
+        $result = DB::transaction(function () use ($id, $user_id) {
+            return DB::table('user_purchased_courses')->where('course_id', $id)->where('user_id', $user_id)->exists();
+        });
+        return $result;
+    }
+
     public static function isCourseInWishlist($id, $user_id)
     {
         $result = DB::transaction(function () use ($id, $user_id) {

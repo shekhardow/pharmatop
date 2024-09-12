@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Aws\S3\S3Client;
 
 function generateOtp()
 {
@@ -70,9 +71,9 @@ function delete($table, $wherecol, $wherevalue)
 // Common function to change the status
 function change_status($id, $status, $table, $wherecol, $status_variable, $wherecondition = '=')
 {
-    $data = array(
+    $data = [
         $status_variable => $status,
-    );
+    ];
     $affected_row = DB::table($table)->where($wherecol, $wherecondition, $id)->update($data);
     return $affected_row;
 }
@@ -80,11 +81,11 @@ function change_status($id, $status, $table, $wherecol, $status_variable, $where
 // String Encryption
 function encryptionString($string)
 {
-    $ciphering = "AES-128-CTR";
+    $ciphering = 'AES-128-CTR';
     $iv_length = openssl_cipher_iv_length($ciphering);
     $options = 0;
     $encryption_iv = '1234567890987654321';
-    $encryption_key = "DESIGNOWEB";
+    $encryption_key = 'DESIGNOWEB';
     $encryption = openssl_encrypt($string, $ciphering, $encryption_key, $options, $encryption_iv);
     return $encryption;
 }
@@ -93,9 +94,9 @@ function encryptionString($string)
 function decryptionString($encryption)
 {
     $options = 0;
-    $ciphering = "AES-128-CTR";
+    $ciphering = 'AES-128-CTR';
     $decryption_iv = '1234567890987654321';
-    $decryption_key = "DESIGNOWEB";
+    $decryption_key = 'DESIGNOWEB';
     $decryption = openssl_decrypt($encryption, $ciphering, $decryption_key, $options, $decryption_iv);
     return $decryption;
 }
@@ -103,7 +104,7 @@ function decryptionString($encryption)
 // Date Validation
 function validateDate($mystring)
 {
-    $invaliddate = "1970";
+    $invaliddate = '1970';
     if (strpos($mystring, $invaliddate) !== false) {
         return true;
     } else {
@@ -125,7 +126,7 @@ function formatDate($date, $type = '')
 // For Single Upload
 function singleUpload($request, $file_name, $path)
 {
-    if ($request->hasfile($file_name)) {
+    if ($request->hasFile($file_name)) {
         $file = $request->file($file_name);
         $file_extension = $file->extension();
         $name = time() . '.' . $file_extension;
@@ -133,7 +134,7 @@ function singleUpload($request, $file_name, $path)
         $video_extensions = ['mp4', 'avi', 'mov', 'mkv'];
         if (in_array($file_extension, $video_extensions)) {
             $videoPath = base_path('uploads/') . $path . '/' . $name;
-            $getID3 = new \getID3;
+            $getID3 = new \getID3();
             $fileInfo = $getID3->analyze($videoPath);
             if (isset($fileInfo['playtime_seconds'])) {
                 $duration = $fileInfo['playtime_seconds'];
@@ -151,7 +152,7 @@ function singleUpload($request, $file_name, $path)
 // For Multiple Upload
 function multipleUploads($request, $file_name, $path)
 {
-    if ($request->hasfile($file_name)) {
+    if ($request->hasFile($file_name)) {
         $data = [];
         foreach ($request->file($file_name) as $file) {
             $name = time() . '.' . $file->extension();
@@ -166,25 +167,51 @@ function multipleUploads($request, $file_name, $path)
 }
 
 // For Single AWS Upload
-function singleAwsUpload(Request $request, $file_name, $path)
+function singleAwsUpload(Request $request, $file_name, $path = 'images')
 {
-    if ($request->hasfile($file_name)) {
-        $file = $request->file($file_name);
-        $path = Storage::disk('s3')->put($path, $file);
-        return $path ? Storage::disk('s3')->path($path) : false;
+    if (!$request->hasFile($file_name)) {
+        return false;
     }
-    return false;
+    $file = $request->file($file_name);
+    $filePath = Storage::disk('s3')->put($path, $file);
+    if (!$filePath) {
+        return false;
+    }
+    $fileUrl = Storage::disk('s3')->url($filePath);
+    $videoExtensions = ['mp4', 'avi', 'mov', 'mkv'];
+    $fileExtension = $file->extension();
+    $duration = null;
+    if (in_array($fileExtension, $videoExtensions)) {
+        $s3Client = new S3Client([
+            'version' => 'latest',
+            'region'  => env('AWS_DEFAULT_REGION'),
+            'credentials' => [
+                'key'    => env('AWS_ACCESS_KEY_ID'),
+                'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            ],
+        ]);
+        $tempFilePath = sys_get_temp_dir() . '/' . basename($filePath);
+        $result = $s3Client->getObject([
+            'Bucket' => env('AWS_BUCKET'),
+            'Key'    => $filePath,
+            'SaveAs' => $tempFilePath,
+        ]);
+        $getID3 = new getID3();
+        $fileInfo = $getID3->analyze($tempFilePath);
+        $duration = $fileInfo['playtime_seconds'] ?? null;
+        unlink($tempFilePath);
+    }
+    return (object) ['url' => $fileUrl, 'duration' => $duration,];
 }
 
 // For Multiple AWS Uploads
-function multipleAwsUploads(Request $request, $file_name, $path)
+function multipleAwsUploads(Request $request, $file_name, $path = '/images')
 {
-    if ($request->hasfile($file_name)) {
+    if ($request->hasFile($file_name)) {
         $data = array_map(function ($file) use ($path) {
             $filePath = Storage::disk('s3')->put($path, $file);
-            return Storage::disk('s3')->path($filePath);
+            return Storage::disk('s3')->url($filePath);
         }, $request->file($file_name));
-
         return !empty($data) ? $data : false;
     }
     return false;
@@ -193,7 +220,7 @@ function multipleAwsUploads(Request $request, $file_name, $path)
 function generateSlug($string, $separator = '-', $maxLength = 100)
 {
     $slug = strtolower($string);
-    $slug = preg_replace("/[^a-z0-9]+/", $separator, $slug);
+    $slug = preg_replace('/[^a-z0-9]+/', $separator, $slug);
     $slug = trim($slug, $separator);
     $slug = substr($slug, 0, $maxLength);
     return $slug;
@@ -232,10 +259,7 @@ function sendMail($data)
 
 function getUserByToken($token)
 {
-    return DB::table('users')
-        ->select('users.*', 'user_authentications.user_token', 'user_authentications.firebase_token')
-        ->leftJoin('user_authentications', 'users.id', '=', 'user_authentications.user_id')
-        ->where('user_authentications.user_token', $token)->get()->first();
+    return DB::table('users')->select('users.*', 'user_authentications.user_token', 'user_authentications.firebase_token')->leftJoin('user_authentications', 'users.id', '=', 'user_authentications.user_id')->where('user_authentications.user_token', $token)->get()->first();
 }
 
 /* User Authentication Function */

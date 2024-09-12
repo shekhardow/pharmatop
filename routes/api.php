@@ -71,6 +71,8 @@ Route::group(['prefix' => 'admin'], function () {
     Route::post('/deleteModuleVideo', [AdminController::class, 'deleteModuleVideo']);
     Route::post('/addModuleDocument', [AdminController::class, 'addModuleDocument']);
     Route::post('/deleteModuleDocument', [AdminController::class, 'deleteModuleDocument']);
+
+    Route::get('/getAllBillingInfo', [AdminController::class, 'getAllBillingInfo']);
 });
 
 Route::post('user/register', [UserController::class, 'register']);

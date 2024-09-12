@@ -252,4 +252,20 @@ class AdminModel extends Model
         });
         return $result;
     }
+
+    public static function getAllBillingInfo($per_page, $search = null)
+    {
+        $result = DB::transaction(function () use ($per_page, $search) {
+            $query = DB::table('user_payments')->select('*')->where('status', 'Active')->orderBy('id', 'desc');
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('amount', 'like', "%{$search}%")
+                        ->orWhere('course_ids', 'like', "%{$search}%");
+                });
+            }
+            return $query->paginate($per_page);
+        });
+        return $result;
+    }
 }
