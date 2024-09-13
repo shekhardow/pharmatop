@@ -12,6 +12,7 @@ use Stripe\Stripe;
 use Stripe\PaymentIntent;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
@@ -747,26 +748,41 @@ class UserController extends Controller
 
             $pdf = PDF::loadView('pdf.certificate', compact('student_name', 'course_name', 'completion_date'));
 
-            $fileName = 'certificate.pdf';
+            $fileName = "certificate-$user_id-$course_id.pdf";
             $filePath = 'certificates/' . $fileName;
             Storage::disk('public')->put($filePath, $pdf->output());
 
             if (Storage::disk('public')->exists($filePath)) {
                 $tempFilePath = Storage::disk('public')->path($filePath);
-                $destinationPath = base_path('uploads/user');
-                $newFileName = time() . '.pdf';
-                if (File::move($tempFilePath, $destinationPath . '/' . $newFileName)) {
+
+                if (!file_exists($tempFilePath)) {
+                    return response()->json(['result' => -1, 'msg' => 'Temporary PDF file not found.']);
+                }
+
+                $file = new \Illuminate\Http\UploadedFile(
+                    $tempFilePath,
+                    $fileName,
+                    'application/pdf',
+                    filesize($tempFilePath),
+                    true
+                );
+
+                $newRequest = Request::create('/upload', 'POST', [], [], ['certificate' => $file]);
+                $uploadResult = singleAwsUpload($newRequest, 'certificate', 'certificates');
+                if ($uploadResult === false) {
+                    return response()->json(['result' => -1, 'msg' => 'File upload to S3 failed.']);
+                }
+                if ($uploadResult) {
                     $data = [
                         'user_id' => $user_id,
                         'course_id' => $course_id,
-                        'certificate' => $newFileName,
+                        'certificate' => $uploadResult->url,
                         'completed_on' => now(),
                         'created_at' => now(),
                         'updated_at' => now()
                     ];
                     UserModel::generateCertificate($data);
-                    $file = asset('uploads/user/' . $newFileName);
-                    return response()->json(['result' => 1, 'msg' => 'Certificate generated successfully', 'data' => ['file' => $file]]);
+                    return response()->json(['result' => 1, 'msg' => 'Certificate generated successfully', 'data' => ['file' => $uploadResult->url]]);
                 } else {
                     return response()->json(['result' => -1, 'msg' => 'Failed to generate the pdf!']);
                 }
