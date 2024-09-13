@@ -773,6 +773,9 @@ class UserController extends Controller
                     return response()->json(['result' => -1, 'msg' => 'File upload to S3 failed.']);
                 }
                 if ($uploadResult) {
+                    if (file_exists($tempFilePath)) {
+                        unlink($tempFilePath);
+                    }
                     $data = [
                         'user_id' => $user_id,
                         'course_id' => $course_id,
