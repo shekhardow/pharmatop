@@ -324,12 +324,16 @@ class UserModel extends Model
                 ->where('status', 'Active')
                 ->pluck('course_id');
             $query = DB::table('courses')
-                ->select('courses.*', 'user_courses_status.completion_status', 'user_courses_status.completion_date', 'user_courses_status.completion_percentage')
+                ->select('courses.*', 'user_courses_status.completion_status', 'user_courses_status.completion_date', 'user_courses_status.completion_percentage', 'user_certificates.certificate')
                 ->whereIn('courses.id', $courseIds)
                 ->where('courses.status', 'Active')
                 ->leftJoin('user_courses_status', function ($join) use ($user_id) {
                     $join->on('courses.id', '=', 'user_courses_status.course_id')
                         ->where('user_courses_status.user_id', '=', $user_id);
+                })
+                ->leftJoin('user_certificates', function ($join) use ($user_id) {
+                    $join->on('courses.id', '=', 'user_certificates.course_id')
+                        ->where('user_certificates.user_id', '=', $user_id);
                 });
             if ($search) {
                 $query->where(function ($q) use ($search) {
