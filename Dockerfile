@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y \
     xfonts-75dpi \
     xfonts-100dpi \
     fontconfig \
+    nano \
+    wkhtmltopdf \
     && docker-php-ext-install pdo_mysql exif pcntl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd
@@ -33,6 +35,9 @@ RUN chown -R www-data:www-data /var/www/html \
 
 # Install PHP dependencies using Composer
 RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+
+# Create a custom PHP configuration file
+RUN echo "memory_limit = 512M\nupload_max_filesize = 50M\npost_max_size = 50M" > /usr/local/etc/php/conf.d/custom.ini
 
 # Expose port 5000
 EXPOSE 5000
