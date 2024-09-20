@@ -214,8 +214,8 @@ class AdminController extends Controller
             $total_users = select('users', 'id', [['status', '!=', 'Deleted']])->count();
             $total_courses = select('courses', 'id', [['status', '!=', 'Deleted']])->count();
             $earnings = select('user_payments', 'amount', [['status', '!=', 'Deleted']])->sum('amount');
-            $top_category = select('course_categories', 'category_name', [['status', '!=', 'Deleted'], ['upvoted', '=', 'Yes']])->first();
-            $top_course = select('courses', 'course_name', [['status', '!=', 'Deleted'], ['upvoted', '=', 'Yes']])->first();
+            $top_category = select('course_categories', ['category_name', 'id'], [['status', '!=', 'Deleted'], ['upvoted', '=', 'Yes']])->first();
+            $top_course = select('courses', ['course_name', 'id'], [['status', '!=', 'Deleted'], ['upvoted', '=', 'Yes']])->first();
             $active_users = select('users', 'id', ['status' => 'Active'])->count();
             $active_users_percentage = !empty($active_users) ? ($active_users * 100) / $total_users : 0;
             $new_users = select('users', 'id', [['status', '!=', 'Deleted'], ['created_at', '>=', date('Y-m-d H:i:s', strtotime('-1 day'))]])->count();
@@ -234,8 +234,10 @@ class AdminController extends Controller
                 'total_users' => !empty($total_users) ? number_format($total_users) : 0,
                 'total_courses' => !empty($total_courses) ? number_format($total_courses) : 0,
                 'earnings' => !empty($earnings) ? number_format($earnings) : 0,
-                'top_category' => !empty($top_category) ? $top_category->category_name : 0,
-                'top_course' => !empty($top_course) ? $top_course->course_name : 0,
+                'top_category' => !empty($top_category) ? $top_category->category_name : null,
+                'top_category_id' => !empty($top_category) ? $top_category->id : null,
+                'top_course' => !empty($top_course) ? $top_course->course_name : null,
+                'top_course_id' => !empty($top_course) ? $top_course->id : null,
                 'active_users' => !empty($active_users_percentage) ? number_format($active_users_percentage) : 0,
                 'new_users' => !empty($new_users_percentage) ? number_format($new_users_percentage) : 0,
                 'revenue' => $monthly_earnings
