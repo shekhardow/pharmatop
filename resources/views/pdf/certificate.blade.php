@@ -13,57 +13,40 @@
             padding: 0;
         }
 
-        .certificate {
-            /* background-color: #f9f9f9; */
-            /* border: 1px solid #ddd; */
-            padding: 20px;
-            width: 100%;
-            max-height: 100vh;
+        h1,
+        h2 {
             margin: 0;
-            /* box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); */
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .main-container {
-            margin-bottom: 200px;
-            text-align: center;
-        }
-
-        .description {
-            margin-right: 40px;
+            padding: 5px 0;
         }
 
         h1 {
-            font-size: 50px;
-            font-weight: 500;
-            margin-bottom: 0;
+            font-size: 36px;
         }
 
-        h2,
-        h3 {
+        h2 {
+            font-size: 20px;
             font-weight: normal;
-            margin-bottom: 50px;
+        }
+
+        .bold {
+            font-weight: bold;
+            font-size: 25px;
+        }
+
+        .description {
+            margin: 10px 0;
+            font-size: 18px;
         }
 
         .additional-content {
-            font-size: 12px;
+            font-size: 14px;
             color: #666;
             margin-top: 10px;
         }
 
-        .bottom-container {
-            margin: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-        }
-
         .left-align img {
-            /* width: 100px; */
             height: auto;
+            max-height: 50px;
             display: block;
             margin: 0;
             padding: 0;
@@ -71,62 +54,89 @@
 
         .right-align {
             text-align: right;
-            padding-right: 40px;
-        }
-
-        .date {
-            font-size: 12px;
-            color: #666;
-            margin: 0;
         }
 
         .signature {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
             margin: 0;
-        }
-
-        .uppercase {
-            text-transform: uppercase;
-        }
-
-        .bold {
-            font-weight: 300;
-            font-size: 25px;
         }
     </style>
 </head>
 
 <body>
     <div class="certificate">
-        <div class="main-container">
-            <h1>Certificate of Completion</h1>
-            <h2>In recognition of completing a course</h2>
-            <p class="uppercase">This is to certify that</p>
-            <p class="bold"><?php echo !empty($student_name) ? $student_name : ''; ?></p>
-            <p class="description">has successfully completed the course
-                <strong><?php echo !empty($course_name) ? $course_name : ''; ?></strong> and
-                has demonstrated a thorough understanding of the course material. The student has shown exceptional
-                dedication and commitment to their studies, and has consistently
-                demonstrated a high level of academic achievement.
-            </p>
-            <p class="description">This certificate is a testament to the student's hard work and perseverance, and we
-                are confident that
-                they
-                will go on to achieve great things in their future endeavors.</p>
-            <div class="additional-content">
-                This certificate is issued by <strong>Pharmatop Institutions</strong>
-                <?php echo !empty($completion_date) ? "on <strong>$completion_date</strong>." : ''; ?>
-            </div>
-        </div>
-        <div class="bottom-container">
-            <div class="left-align">
-                <img src="<?php echo url('public/assets/pharmatop-logo.png'); ?>" alt="logo">
-            </div>
-            <div class="right-align">
-                <p class="signature ">Signature: ________________________</p>
-            </div>
-        </div>
+
+        <table class="commonTable heading-container" style="width: 100%;">
+            <tbody>
+                <tr>
+                    <td style="width: 100%; text-align: center;">
+                        <h1>Certificate of Completion</h1>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 100%; text-align: center;">
+                        <h2>In recognition of completing a course</h2>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table style="width: 100%; margin-top: 70px;">
+            <tbody>
+                <tr>
+                    <td style="width: 100%; text-align: center;">
+                        <p>This is to certify that</p>
+                        <p class="bold">{{ $student_name }}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 100%; text-align: center;">
+                        <p class="description">has successfully completed the course
+                            <strong>{{ $course_name }}</strong> and
+                            has demonstrated a thorough understanding of the course material. The student has shown
+                            exceptional
+                            dedication and commitment to their studies, and has consistently
+                            demonstrated a high level of academic achievement.
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 100%; text-align: center;">
+                        <p class="description">This certificate is a testament to the student's hard work and
+                            perseverance, and we
+                            are confident that they will go on to achieve great things in their future endeavors.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 100%; text-align: center;">
+                        <div class="additional-content">
+                            This certificate is issued by <strong>Pharmatop Institutions</strong>
+                            @if (!empty($completion_date))
+                                on <strong>{{ $completion_date }}</strong>.
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table style="width: 100%; margin-top: 200px;">
+            <tr>
+                <td style="vertical-align: middle; text-align: left; padding-top: 20px;">
+                    <div class="left-align">
+                        <img src="https://pharmatop.s3.eu-north-1.amazonaws.com/logos/pharmatop-logo.png"
+                            alt="logo">
+                    </div>
+                </td>
+                <td style="vertical-align: middle; text-align: right; padding-top: 50px;">
+                    <div class="right-align">
+                        <p class="signature">Signature: ________________________</p>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
     </div>
 </body>
 
