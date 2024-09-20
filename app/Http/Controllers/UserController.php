@@ -796,4 +796,22 @@ class UserController extends Controller
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
         }
     }
+
+    public function downloadCertificate(Request $request, $course_id)
+    {
+        $token = $request->header('token');
+        $user_id = getUserByToken($token)->id;
+        $user_certificate = select('user_certificates', 'certificate', ['user_id' => $user_id, 'course_id' => $course_id])->first();
+        $certificateUrl = !empty($user_certificate) ? $user_certificate->certificate : null;
+        if (empty($certificateUrl)) {
+            return response()->json(['result' => -1, 'msg' => 'Certificate not found!']);
+        }
+        $fileContent = file_get_contents($certificateUrl);
+        $fileName = 'certificate_' . $course_id . '.pdf';
+        return response($fileContent)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"')
+            ->header('Content-Transfer-Encoding', 'binary')
+            ->header('Accept-Ranges', 'bytes');
+    }
 }
