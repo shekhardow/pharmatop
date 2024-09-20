@@ -797,10 +797,8 @@ class UserController extends Controller
         }
     }
 
-    public function downloadCertificate(Request $request, $course_id)
+    public function downloadCertificate(Request $request, $user_id, $course_id)
     {
-        $token = $request->header('token');
-        $user_id = getUserByToken($token)->id;
         $user_certificate = select('user_certificates', 'certificate', ['user_id' => $user_id, 'course_id' => $course_id])->first();
         $certificateUrl = !empty($user_certificate) ? $user_certificate->certificate : null;
         if (empty($certificateUrl)) {

@@ -85,6 +85,7 @@ Route::get('user/getCourseDetailsById/{id?}/{guest}', [UserController::class, 'g
 Route::get('user/getAllCountries', [UserController::class, 'getAllCountries']);
 Route::get('user/getAllStatesByCountry/{id?}', [UserController::class, 'getAllStatesByCountry']);
 Route::get('user/getAllCitiesByState/{id?}', [UserController::class, 'getAllCitiesByState']);
+Route::get('user/downloadCertificate/{user_id?}/{course_id?}', [UserController::class, 'downloadCertificate']);
 
 Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::get('/getUserDetails', [UserController::class, 'getUserDetails']);
@@ -108,5 +109,4 @@ Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
 
     Route::post('/completeVideo', [UserController::class, 'completeVideo']);
     Route::post('/generateCertificate', [UserController::class, 'generateCertificate']);
-    Route::get('/downloadCertificate/{id?}', [UserController::class, 'downloadCertificate']);
 });
