@@ -409,10 +409,10 @@ class UserController extends Controller
             }
 
             $course_id = $request->post('course_id');
-            $message = UserModel::toggleWishlist($user_id, $course_id);
+            $result = UserModel::toggleWishlist($user_id, $course_id);
 
-            if (!empty($message)) {
-                return response()->json(['result' => 1, 'msg' => $message, 'data' => true]);
+            if (!empty($result)) {
+                return response()->json(['result' => 1, 'msg' => $result->message, 'data' => ['wishlist_count' => $result->wishlist_count]]);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

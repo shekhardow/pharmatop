@@ -189,7 +189,12 @@ class UserModel extends Model
                 ]);
                 $message = 'Added to wishlist';
             }
-            return $message;
+            $wishlist_count = DB::table('user_wishlists')->where('user_id', $user_id)->where('wishlist_status', 'Added')->count();
+            DB::table('users')->where('id', $user_id)->update(['wishlist_count' => $wishlist_count, 'updated_at' => now()]);
+            return (object) [
+                'message' => $message,
+                'wishlist_count' => $wishlist_count
+            ];
         });
         return $result;
     }

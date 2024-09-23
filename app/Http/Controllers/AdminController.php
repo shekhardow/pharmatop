@@ -186,7 +186,7 @@ class AdminController extends Controller
 
             $content_type = $request->input('content_type');
 
-            if ($request->has('title') || $request->has('description')) {
+            if ($request->has('title') || $request->has('description') || $request->has('sub_heading') || $request->hasFile('banner_image')) {
                 $data = [
                     'updated_at' => now()
                 ];
@@ -196,9 +196,17 @@ class AdminController extends Controller
                 if ($request->has('description')) {
                     $data['description'] = $request->input('description');
                 }
+                if ($request->has('sub_heading')) {
+                    $data['sub_heading'] = $request->input('sub_heading');
+                }
+                if ($request->hasFile('banner_image')) {
+                    $imgResult = singleAwsUpload($request, 'banner_image');
+                    $banner_image = $imgResult->url;
+                    $data['banner_image'] = !empty($banner_image) ? $banner_image : null;
+                }
                 $result = AdminModel::updateStaticContent($content_type, $data);
                 if ($result) {
-                    return response()->json(['result' => 1, 'msg' => 'Profile updated successfully', 'data' => $result]);
+                    return response()->json(['result' => 1, 'msg' => "$content_type content updated successfully", 'data' => $result]);
                 }
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No changes were found!']);
