@@ -790,7 +790,7 @@ class UserController extends Controller
                     return response()->json(['result' => -1, 'msg' => 'Failed to generate the pdf!']);
                 }
             } else {
-                return response()->json(['message' => 'Failed to save the PDF.'], 500);
+                return response()->json(['message' => 'Failed to save the PDF!'], 500);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -811,5 +811,28 @@ class UserController extends Controller
             ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"')
             ->header('Content-Transfer-Encoding', 'binary')
             ->header('Accept-Ranges', 'bytes');
+    }
+
+    public function logout(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user_id = getUserByToken($token)->id;
+
+            $data = [
+                'last_logout' => now(),
+                'login_status' => 0
+            ];
+
+            $result = UserModel::logout($user_id, $data);
+
+            if ($result) {
+                return response()->json(['result' => 1, 'msg' => 'Logged out successfully']);
+            } else {
+                return response()->json(['message' => 'Failed to Log out!'], 500);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
     }
 }

@@ -216,7 +216,7 @@ class AdminController extends Controller
             $earnings = select('user_payments', 'amount', [['status', '!=', 'Deleted']])->sum('amount');
             $top_category = select('course_categories', ['category_name', 'id'], [['status', '!=', 'Deleted'], ['upvoted', '=', 'Yes']])->first();
             $top_course = select('courses', ['course_name', 'id'], [['status', '!=', 'Deleted'], ['upvoted', '=', 'Yes']])->first();
-            $active_users = select('users', 'id', ['status' => 'Active'])->count();
+            $active_users = select('users', 'id', ['login_status' => 1, 'status' => 'Active'])->count();
             $active_users_percentage = !empty($active_users) ? ($active_users * 100) / $total_users : 0;
             $new_users = select('users', 'id', [['status', '!=', 'Deleted'], ['created_at', '>=', date('Y-m-d H:i:s', strtotime('-1 day'))]])->count();
             $new_users_percentage = !empty($new_users) ? ($new_users * 100) / $total_users : 0;

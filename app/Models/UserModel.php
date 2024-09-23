@@ -410,4 +410,12 @@ class UserModel extends Model
         });
         return $result;
     }
+
+    public static function logout($id, $data)
+    {
+        $result = DB::transaction(function () use ($id, $data) {
+            return DB::table('users')->where('id', $id)->update($data);
+        });
+        return $result;
+    }
 }

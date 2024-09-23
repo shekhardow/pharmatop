@@ -32,6 +32,11 @@ class CommonController extends Controller
                 return response()->json(['result' => -1, 'msg' => 'Invalid password!']);
             }
 
+            update($user->source, 'id', $user->id, ['last_login' => now(), 'login_status' => 1]);
+
+            $user->last_login = now()->format('Y-m-d H:i:s');
+            $user->login_status = 1;
+
             return response()->json(['result' => 1, 'msg' => 'Logged in successfully', 'data' => $user]);
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
