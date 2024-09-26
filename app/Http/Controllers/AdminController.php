@@ -49,6 +49,13 @@ class AdminController extends Controller
             }
 
             $user_id = $request->input('user_id');
+
+            $remove_image = $request->query->get('remove_profile_image');
+            if ($remove_image) {
+                update('admins', 'id', $user_id, ['profile_image' => null]);
+                return response()->json(['result' => 1, 'msg' => 'Profile picture removed!', 'data' => null]);
+            }
+
             $user = AdminModel::getAdminById($user_id);
 
             $logoResult = $request->hasFile('logo') ? singleAwsUpload($request, 'logo') : $user->logo;
@@ -344,11 +351,11 @@ class AdminController extends Controller
             }
 
             $alreadyExists = select('course_categories', 'id', ['category_name' => $request->input('category_name'), ['status', '!=', 'Deleted']])->first();
-            if (!empty($alreadyExists)) {
+            if ($alreadyExists) {
                 return response()->json(['result' => -1, 'msg' => 'The category name has already been taken!']);
             }
 
-            if ($request->hasfile('category_image')) {
+            if ($request->hasFile('category_image')) {
                 $imgResult = singleAwsUpload($request, 'category_image');
                 $category_image = $imgResult->url;
             } else {
@@ -394,11 +401,11 @@ class AdminController extends Controller
             }
 
             $alreadyExists = select('course_categories', 'id', ['category_name' => $request->input('category_name'), ['id', '!=', $category_id], ['status', '!=', 'Deleted']])->first();
-            if (!empty($alreadyExists)) {
+            if ($alreadyExists) {
                 return response()->json(['result' => -1, 'msg' => 'The category name has already been taken!']);
             }
 
-            if ($request->hasfile('category_image')) {
+            if ($request->hasFile('category_image')) {
                 $imgResult = singleAwsUpload($request, 'category_image');
                 $category_image = $imgResult->url;
             } else {
@@ -574,11 +581,11 @@ class AdminController extends Controller
             }
 
             $alreadyExists = select('courses', 'id', ['course_name' => $request->input('course_name'), ['status', '!=', 'Deleted']])->first();
-            if (!empty($alreadyExists)) {
+            if ($alreadyExists) {
                 return response()->json(['result' => -1, 'msg' => 'The course name has already been taken!']);
             }
 
-            if ($request->hasfile('course_image')) {
+            if ($request->hasFile('course_image')) {
                 $imgResult = singleAwsUpload($request, 'course_image');
                 $course_image = $imgResult->url;
             } else {
@@ -631,11 +638,11 @@ class AdminController extends Controller
             }
 
             $alreadyExists = select('courses', 'id', ['course_name' => $request->input('course_name'), ['id', '!=', $course_id], ['status', '!=', 'Deleted']])->first();
-            if (!empty($alreadyExists)) {
+            if ($alreadyExists) {
                 return response()->json(['result' => -1, 'msg' => 'The course name has already been taken!']);
             }
 
-            if ($request->hasfile('course_image')) {
+            if ($request->hasFile('course_image')) {
                 $imgResult = singleAwsUpload($request, 'course_image');
                 $course_image = $imgResult->url;
             } else {
@@ -739,39 +746,39 @@ class AdminController extends Controller
             }
 
             $alreadyExists = select('course_module_videos', 'id', ['title' => $request->input('title'), ['status', '!=', 'Deleted']])->first();
-            if (!empty($alreadyExists)) {
+            if ($alreadyExists) {
                 return response()->json(['result' => -1, 'msg' => 'The module title has already been taken!']);
-            }
-
-            if ($request->hasfile('thumbnail')) {
-                $imgResult = singleAwsUpload($request, 'thumbnail');
-                $thumbnail = $imgResult->url;
             } else {
-                return response()->json(['result' => -1, 'msg' => 'Upload thumbnail image!']);
-            }
+                if ($request->hasFile('thumbnail')) {
+                    $imgResult = singleAwsUpload($request, 'thumbnail');
+                    $thumbnail = $imgResult->url;
+                } else {
+                    return response()->json(['result' => -1, 'msg' => 'Upload thumbnail image!']);
+                }
 
-            if ($request->hasfile('video')) {
-                $videoResult = singleAwsUpload($request, 'video');
-                $video = $videoResult->url;
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'Upload video!']);
-            }
+                if ($request->hasFile('video')) {
+                    $videoResult = singleAwsUpload($request, 'video');
+                    $video = $videoResult->url;
+                } else {
+                    return response()->json(['result' => -1, 'msg' => 'Upload video!']);
+                }
 
-            $data = [
-                'course_id' => !empty($request->input('course_id')) ? $request->input('course_id') : null,
-                'title' => !empty($request->input('title')) ? $request->input('title') : null,
-                'description' => !empty($request->input('description')) ? $request->input('description') : null,
-                'thumbnail' => !empty($thumbnail) ? $thumbnail : null,
-                'video' => !empty($video) ? $video : null,
-                'duration' => !empty($videoResult->duration) ? $videoResult->duration : null
-            ];
+                $data = [
+                    'course_id' => !empty($request->input('course_id')) ? $request->input('course_id') : null,
+                    'title' => !empty($request->input('title')) ? $request->input('title') : null,
+                    'description' => !empty($request->input('description')) ? $request->input('description') : null,
+                    'thumbnail' => !empty($thumbnail) ? $thumbnail : null,
+                    'video' => !empty($video) ? $video : null,
+                    'duration' => !empty($videoResult->duration) ? $videoResult->duration : null
+                ];
 
-            $result = AdminModel::addModuleVideo($data);
+                $result = AdminModel::addModuleVideo($data);
 
-            if (!empty($result)) {
-                return response()->json(['result' => 1, 'msg' => 'Module video added successfully', 'data' => $result]);
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+                if (!empty($result)) {
+                    return response()->json(['result' => 1, 'msg' => 'Module video added successfully', 'data' => $result]);
+                } else {
+                    return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+                }
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -822,35 +829,35 @@ class AdminController extends Controller
                 return response()->json(['result' => 0, 'errors' => $validator->errors()]);
             }
 
-            $alreadyExists = select('course_documents', 'id', ['document_name' => $request->input('document_name'), ['status', '!=', 'Deleted']])->first();
-            if (!empty($alreadyExists)) {
+            $alreadyExists = select('course_documents', 'id', ['document_name' => $request->input('document_name'), 'document_type' => $request->input('document_type'), ['status', '!=', 'Deleted']])->first();
+            if ($alreadyExists) {
                 return response()->json(['result' => -1, 'msg' => 'The document name has already been taken!']);
-            }
-
-            if ($request->hasfile('document')) {
-                $extension = $request->file('document')->getClientOriginalExtension();
-                if ($request->input('document_type') === 'pdf' && $extension !== 'pdf') {
-                    return response()->json(['result' => -1, 'msg' => 'File type and document_type do not match! Please upload a PDF.']);
+            } else {
+                if ($request->hasFile('document')) {
+                    $extension = $request->file('document')->getClientOriginalExtension();
+                    if ($request->input('document_type') === 'pdf' && $extension !== 'pdf') {
+                        return response()->json(['result' => -1, 'msg' => 'File type and document_type do not match! Please upload a PDF.']);
+                    }
+                    $imgResult = singleAwsUpload($request, 'document');
+                    $document = $imgResult->url;
+                } else {
+                    return response()->json(['result' => -1, 'msg' => 'Upload document!']);
                 }
-                $imgResult = singleAwsUpload($request, 'document');
-                $document = $imgResult->url;
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'Upload document!']);
-            }
 
-            $data = [
-                'course_id' => !empty($request->input('course_id')) ? $request->input('course_id') : null,
-                'document_name' => !empty($request->input('document_name')) ? $request->input('document_name') : null,
-                'document_type' => !empty($request->input('document_type')) ? $request->input('document_type') : null,
-                'document' => !empty($document) ? $document : null
-            ];
+                $data = [
+                    'course_id' => !empty($request->input('course_id')) ? $request->input('course_id') : null,
+                    'document_name' => !empty($request->input('document_name')) ? $request->input('document_name') : null,
+                    'document_type' => !empty($request->input('document_type')) ? $request->input('document_type') : null,
+                    'document' => !empty($document) ? $document : null
+                ];
 
-            $result = AdminModel::addModuleDocument($data);
+                $result = AdminModel::addModuleDocument($data);
 
-            if (!empty($result)) {
-                return response()->json(['result' => 1, 'msg' => 'Module document added successfully', 'data' => $result]);
-            } else {
-                return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+                if (!empty($result)) {
+                    return response()->json(['result' => 1, 'msg' => 'Module document added successfully', 'data' => $result]);
+                } else {
+                    return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+                }
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);

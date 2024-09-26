@@ -123,6 +123,12 @@ class UserController extends Controller
                 return response()->json(['result' => 0, 'errors' => $validator->errors()]);
             }
 
+            $remove_image = $request->query->get('remove_profile_image');
+            if ($remove_image) {
+                update('users', 'id', $user_id, ['profile_image' => null]);
+                return response()->json(['result' => 1, 'msg' => 'Profile picture removed!', 'data' => null]);
+            }
+
             $user = UserModel::getUserById($user_id);
 
             $profileImageResult = $request->hasFile('profile_image') ? singleAwsUpload($request, 'profile_image') : $user->profile_image;
