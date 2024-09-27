@@ -3,141 +3,77 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Certificate of Completion</title>
+    <title>Certificate</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 16px;
-            margin: 0;
-            padding: 0;
-        }
-
-        h1,
-        h2 {
-            margin: 0;
-            padding: 5px 0;
-        }
-
-        h1 {
-            font-size: 36px;
-        }
-
-        h2 {
-            font-size: 20px;
-            font-weight: normal;
-        }
-
-        .bold {
-            font-weight: bold;
-            font-size: 25px;
-        }
-
-        .description {
-            margin: 10px 0;
-            font-size: 18px;
-        }
-
-        .additional-content {
-            font-size: 14px;
-            color: #666;
-            margin-top: 10px;
-        }
-
-        .left-align img {
-            height: auto;
-            max-height: 50px;
-            display: block;
-            margin: 0;
-            padding: 0;
-        }
-
-        .right-align {
-            text-align: right;
-        }
-
-        .signature {
-            font-size: 16px;
-            font-weight: bold;
-            margin: 0;
+        p {
+            font-size: 22px;
         }
     </style>
 </head>
 
-<body>
-    <div class="certificate">
-
-        <table class="commonTable heading-container" style="width: 100%;">
-            <tbody>
-                <tr>
-                    <td style="width: 100%; text-align: center;">
-                        <h1>Certificate of Completion</h1>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="width: 100%; text-align: center;">
-                        <h2>In recognition of completing a course</h2>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <table style="width: 100%; margin-top: 70px;">
-            <tbody>
-                <tr>
-                    <td style="width: 100%; text-align: center;">
-                        <p>This is to certify that</p>
-                        <p class="bold">{{ $student_name }}</p>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="width: 100%; text-align: center;">
-                        <p class="description">has successfully completed the course
-                            <strong>{{ $course_name }}</strong> and
-                            has demonstrated a thorough understanding of the course material. The student has shown
-                            exceptional
-                            dedication and commitment to their studies, and has consistently
-                            demonstrated a high level of academic achievement.
-                        </p>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="width: 100%; text-align: center;">
-                        <p class="description">This certificate is a testament to the student's hard work and
-                            perseverance, and we
-                            are confident that they will go on to achieve great things in their future endeavors.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="width: 100%; text-align: center;">
-                        <div class="additional-content">
-                            This certificate is issued by <strong>Pharmatop Institutions</strong>
-                            @if (!empty($completion_date))
-                                on <strong>{{ $completion_date }}</strong>.
-                            @endif
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <table style="width: 100%; margin-top: 200px;">
-            <tr>
-                <td style="vertical-align: middle; text-align: left; padding-top: 20px;">
-                    <div class="left-align">
-                        <img src="https://pharmatop.s3.eu-north-1.amazonaws.com/logos/pharmatop-logo.png"
-                            alt="logo">
-                    </div>
-                </td>
-                <td style="vertical-align: middle; text-align: right; padding-top: 50px;">
-                    <div class="right-align">
-                        <p class="signature">Signature: ________________________</p>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-    </div>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; width: 100%; box-sizing: border-box;">
+    <table width="100%" style="border-collapse: collapse;">
+        <tr>
+            <td colspan="3" style="text-align: center; padding: 0 50px; width: 100%;">
+                <img src="https://pharmatop.s3.eu-north-1.amazonaws.com/logos/pharmatop_logo.svg" alt="logo"
+                    style="float: left; width: 50%; margin-top: 80px;">
+                <img src="https://pharmatop.s3.eu-north-1.amazonaws.com/logos/arrow.svg" alt="arrow"
+                    style="float: right; width: 20%;">
+            </td>
+        </tr>
+    </table>
+    <table width="100%" style="border-collapse: collapse; margin-top: 80px;">
+        <tr style="background-color: #6d2f92; color: white; width: 100%;">
+            <td colspan="3" style="text-align: start; padding: 50px 50px 0 50px; font-size: 24px; width: 100%;">
+                <h1 style="font-size: 45px;">{{ $course_name ?? 'Course' }}</h1>
+            </td>
+        </tr>
+        <tr style="background-color: #6d2f92; color: white; width: 100%;">
+            <td colspan="3" style="text-align: start; padding: 0 50px; font-size: 18px; width: 100%;">
+                <p style="font-size: 40px;">{{ date('d.m.Y', strtotime($completion_date)) ?? date('d.m.Y') }}</p>
+            </td>
+        </tr>
+    </table>
+    <table width="100%" style="border-collapse: collapse; margin-top: 50px;">
+        <tr>
+            <td colspan="3" style="text-align: center; width: 100%;">
+                <p style="color: #6d2f92; font-size: 40px;">POTVRDA O SUDJELOVANJU</p>
+                <p style="margin: 0;">Kojom se potvrđuje da je</p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3" style="text-align: center; font-size: 24px; width: 100%;">
+                <p style="font-size: 40px;">{{ $student_name ?? 'User' }}</p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3" style="text-align: center; font-size: 16px; width: 100%;">
+                <p>sudjelovala na online PharmaTop edukaciji</p>
+                <p style="color: #6d2f92;">{{ $course_name ?? 'Course' }}</p>
+            </td>
+        </tr>
+    </table>
+    <table width="100%" style="border-collapse: collapse; margin-top: 50px;">
+        <tr>
+            <td colspan="3" style="text-align: center; width: 100%;">
+                <p>Organizator:</p>
+                {{-- <p style="font-size: 20px;">PHARMATOP INSTITUTIONS</p> --}}
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: center; padding: 20px 0; width: 50%;">
+                <p>{{ date('d.m.Y', strtotime($completion_date)) ?? date('d.m.Y') }}</p>
+                <hr style="width: 50%; margin: auto; border: 1px solid gray;">
+                <p style="font-size: 20px;">Datum</p>
+            </td>
+            <td style="text-align: center; padding: 20px 0; width: 50%;">
+                <p>PHARMATOP d.o.o. PAKRAC</p>
+                <hr style="width: 70%; margin: auto; border: 1px solid gray;">
+                <p style="text-transform: uppercase;">Vesna Marianovic Jukic</p>
+                <p style="font-size: 20px;">mag. pharm., univ. spec. oec.</p>
+            </td>
+        </tr>
+    </table>
 </body>
 
 </html>

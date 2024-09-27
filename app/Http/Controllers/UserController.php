@@ -752,7 +752,15 @@ class UserController extends Controller
             $course_name = !empty($course->course_name) ? $course->course_name : '';
             $completion_date = now()->format('dS F, Y');
 
-            $pdf = PDF::loadView('pdf.certificate', compact('student_name', 'course_name', 'completion_date'));
+            $pdf = PDF::loadView('pdf.certificate', compact('student_name', 'course_name', 'completion_date'))
+                ->setOption('margin-top', 0)
+                ->setOption('margin-right', 0)
+                ->setOption('margin-bottom', 0)
+                ->setOption('margin-left', 0)
+                ->setOption('dpi', 300)
+                ->setOption('enable-local-file-access', true)
+                ->setOption('no-images', false)
+                ->setOption('image-quality', 100);
 
             $fileName = "certificate-$user_id-$course_id.pdf";
             $filePath = 'certificates/' . $fileName;
