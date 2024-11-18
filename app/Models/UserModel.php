@@ -189,7 +189,12 @@ class UserModel extends Model
                 ]);
                 $message = 'Added to wishlist';
             }
-            $wishlist_count = DB::table('user_wishlists')->where('user_id', $user_id)->where('wishlist_status', 'Added')->count();
+            $wishlist_count = DB::table('user_wishlists')
+                ->leftJoin('courses', 'user_wishlists.course_id', '=', 'courses.id')
+                ->where('user_wishlists.user_id', $user_id)
+                ->where('user_wishlists.wishlist_status', 'Added')
+                ->where('courses.status', 'Active')
+                ->count();
             DB::table('users')->where('id', $user_id)->update(['wishlist_count' => $wishlist_count, 'updated_at' => now()]);
             return (object) [
                 'message' => $message,
@@ -223,10 +228,10 @@ class UserModel extends Model
     public static function toggleCart($user_id, $course_id)
     {
         $result = DB::transaction(function () use ($user_id, $course_id) {
-            $wishlist = DB::table('user_carts')->where('user_id', $user_id)->where('course_id', $course_id)->first();
-            if ($wishlist) {
-                $new_status = $wishlist->cart_status == 'Added' ? 'Removed' : 'Added';
-                DB::table('user_carts')->where('id', $wishlist->id)->update(['cart_status' => $new_status, 'updated_at' => now()]);
+            $cart = DB::table('user_carts')->where('user_id', $user_id)->where('course_id', $course_id)->first();
+            if ($cart) {
+                $new_status = $cart->cart_status == 'Added' ? 'Removed' : 'Added';
+                DB::table('user_carts')->where('id', $cart->id)->update(['cart_status' => $new_status, 'updated_at' => now()]);
                 $message = $new_status == 'Added' ? 'Added to cart' : 'Removed from cart';
             } else {
                 DB::table('user_carts')->insert([
@@ -236,7 +241,12 @@ class UserModel extends Model
                 ]);
                 $message = 'Added to cart';
             }
-            $cart_count = DB::table('user_carts')->where('user_id', $user_id)->where('cart_status', 'Added')->count();
+            $cart_count = DB::table('user_carts')
+                ->leftJoin('courses', 'user_carts.course_id', '=', 'courses.id')
+                ->where('user_carts.user_id', $user_id)
+                ->where('user_carts.cart_status', 'Added')
+                ->where('courses.status', 'Active')
+                ->count();
             DB::table('users')->where('id', $user_id)->update(['cart_count' => $cart_count, 'updated_at' => now()]);
             return (object) [
                 'message' => $message,

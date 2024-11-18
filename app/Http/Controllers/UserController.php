@@ -773,7 +773,7 @@ class UserController extends Controller
                     return response()->json(['result' => -1, 'msg' => 'Temporary PDF file not found.']);
                 }
 
-                $file = new \Illuminate\Http\UploadedFile(
+                $file = new UploadedFile(
                     $tempFilePath,
                     $fileName,
                     'application/pdf',
