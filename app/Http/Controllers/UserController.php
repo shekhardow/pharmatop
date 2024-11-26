@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
+use Junges\Kafka\Facades\Kafka;
+use GuzzleHttp\Client;
 
 class UserController extends Controller
 {
@@ -612,6 +614,15 @@ class UserController extends Controller
             $total_amount = $request->post('total_amount');
             $payment_intent_id = $request->post('payment_intent_id');
 
+            $courses_amount = 0;
+            if (!empty($course_ids)) {
+                foreach ($course_ids as $course_id) {
+                    $course = UserModel::getCourseDetailsById($course_id);
+                    $courses_amount += $course->price;
+                }
+            }
+            // dd($courses_amount);
+
             Stripe::setApiKey(env('STRIPE_SECRET'));
 
             $paymentIntent = PaymentIntent::retrieve($payment_intent_id);
@@ -632,7 +643,7 @@ class UserController extends Controller
                 'pincode' => !empty($request->post('pincode')) ? $request->post('pincode') : null,
                 'payment_method' => $paymentIntent->payment_method,
                 'currency' => $paymentIntent->currency,
-                'amount' => !empty($total_amount) ? $total_amount : null
+                'amount' => !empty($courses_amount) ? $courses_amount : null
             ];
 
             $result = UserModel::checkout($user_id, $data, $course_ids, $course_prices);
@@ -845,6 +856,52 @@ class UserController extends Controller
             } else {
                 return response()->json(['message' => 'Failed to Log out!'], 500);
             }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function updatePlayback(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'user_id' => 'required',
+                'video_id' => 'required',
+                'course_id' => 'required',
+                'playback_time' => 'required',
+            ]);
+            $userId = $validated['user_id'];
+            $courseId = $validated['course_id'];
+            $videoId = $validated['video_id'];
+            $playback = DB::table('user_course_videos_status')
+                ->where([
+                    ['user_id', '=', $userId],
+                    ['course_id', '=', $courseId],
+                    ['video_id', '=', $videoId],
+                ])
+                ->first();
+            if ($playback) {
+                DB::table('user_course_videos_status')
+                    ->where([
+                        ['user_id', '=', $userId],
+                        ['course_id', '=', $courseId],
+                        ['video_id', '=', $videoId],
+                    ])
+                    ->update(['last_playback_time' => $validated['playback_time'], 'updated_at' => now()]);
+            } else {
+                DB::table('user_course_videos_status')->insert([
+                    'user_id' => $userId,
+                    'video_id' => $videoId,
+                    'course_id' => $courseId,
+                    'last_playback_time' => $validated['playback_time'],
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            }
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Playback time updated successfully',
+            ]);
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
         }

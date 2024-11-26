@@ -87,6 +87,8 @@ Route::get('user/getAllStatesByCountry/{id?}', [UserController::class, 'getAllSt
 Route::get('user/getAllCitiesByState/{id?}', [UserController::class, 'getAllCitiesByState']);
 Route::get('user/downloadCertificate/{user_id?}/{course_id?}', [UserController::class, 'downloadCertificate']);
 
+Route::post('/update-playback', [UserController::class, 'updatePlayback']);
+
 Route::group(['prefix' => 'user', 'middleware' => ApiAuth::class], function () {
     Route::get('/getUserDetails', [UserController::class, 'getUserDetails']);
     Route::post('/updateProfile', [UserController::class, 'updateProfile']);

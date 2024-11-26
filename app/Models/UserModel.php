@@ -96,7 +96,14 @@ class UserModel extends Model
     public static function getAllCourses($per_page, $search = null)
     {
         $result = DB::transaction(function () use ($per_page, $search) {
-            $query = DB::table('courses')->select('*')->where('status', 'Active');
+            $query = DB::table('courses')
+                ->select('courses.*')
+                ->where('courses.status', 'Active')
+                ->whereExists(function ($subquery) {
+                    $subquery->select(DB::raw(1))
+                        ->from('course_module_videos')
+                        ->whereColumn('course_module_videos.course_id', 'courses.id');
+                });
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('course_name', 'like', "%{$search}%")
