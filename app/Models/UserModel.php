@@ -172,10 +172,18 @@ class UserModel extends Model
         return $result;
     }
 
-    public static function isVideoCompleted($id, $user_id)
+    public static function isVideoCompleted($id, $course_id, $user_id)
     {
-        $result = DB::transaction(function () use ($id, $user_id) {
-            return DB::table('user_course_videos_status')->where('video_id', $id)->where('user_id', $user_id)->where('completion_status', 'Completed')->exists();
+        $result = DB::transaction(function () use ($id, $course_id, $user_id) {
+            return DB::table('user_course_videos_status')->where('video_id', $id)->where('course_id', $course_id)->where('user_id', $user_id)->where('completion_status', 'Completed')->exists();
+        });
+        return $result;
+    }
+
+    public static function videoLastPlaybackTime($id, $course_id, $user_id)
+    {
+        $result = DB::transaction(function () use ($id, $course_id, $user_id) {
+            return DB::table('user_course_videos_status')->where('video_id', $id)->where('course_id', $course_id)->where('user_id', $user_id)->first();
         });
         return $result;
     }

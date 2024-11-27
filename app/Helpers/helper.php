@@ -198,7 +198,7 @@ function singleAwsUpload(Request $request, $file_name, $path = 'images')
         ]);
         $getID3 = new getID3();
         $fileInfo = $getID3->analyze($tempFilePath);
-        $duration = $fileInfo['playtime_seconds'] ?? null;
+        $duration = isset($fileInfo['playtime_seconds']) ? (int) $fileInfo['playtime_seconds'] : null;
         unlink($tempFilePath);
     }
     return (object) ['url' => $fileUrl, 'duration' => $duration,];

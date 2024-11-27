@@ -386,8 +386,11 @@ class UserController extends Controller
                 $result->videos = !empty($videos) ? $videos : null;
                 if (!empty($result->videos)) {
                     foreach ($result->videos as $video) {
-                        $isVideoCompleted = UserModel::isVideoCompleted($video->id, $user_id);
+                        $isVideoCompleted = UserModel::isVideoCompleted($video->id, $result->id, $user_id);
                         $video->is_video_completed = $isVideoCompleted;
+                        $videoLastPlaybackTime = UserModel::videoLastPlaybackTime($video->id, $result->id, $user_id);
+                        $video->last_playback_time = !empty($videoLastPlaybackTime->last_playback_time) ? $videoLastPlaybackTime->last_playback_time : 0;
+                        $video->last_playback_percentage = $video->duration > 0 ? (($video->last_playback_time / $video->duration) * 100) : 0;
                     }
                 }
                 $result->documents = !empty($documents) ? $documents : null;
