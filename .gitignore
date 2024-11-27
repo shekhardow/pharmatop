@@ -1,6 +1,6 @@
 /.phpunit.cache
 /node_modules
-/websocket-server/node_modules
+/websocket
 /public/build
 /public/hot
 /public/storage
