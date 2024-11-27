@@ -13,8 +13,11 @@ class CommonModel extends Model
     public static function getUserByEmail($email)
     {
         $result = DB::transaction(function () use ($email) {
-            // $admin = DB::table('admins')->select('*')->where('email', $email)->where('status', 'Active')->first();
-            // /
+            $admin = DB::table('admins')->select('*')->where('email', $email)->where('status', 'Active')->first();
+            if ($admin) {
+                $admin->source = 'admins';
+                return $admin;
+            }
             $user = DB::table('users')
                 ->select('users.*', 'user_authentications.user_token', 'user_authentications.firebase_token')
                 ->join('user_authentications', 'users.id', '=', 'user_authentications.user_id')
