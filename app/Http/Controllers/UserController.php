@@ -585,7 +585,8 @@ class UserController extends Controller
 
             $paymentIntent = PaymentIntent::create([
                 'amount' => $total_amount * 100,
-                'currency' => $currency
+                'currency' => $currency,
+                'payment_method_types' => ['card']
             ]);
 
             return response()->json(['result' => 1, 'msg' => 'PaymentIntent created', 'payment_intent_id' => $paymentIntent->id, 'client_secret' => $paymentIntent->client_secret]);
