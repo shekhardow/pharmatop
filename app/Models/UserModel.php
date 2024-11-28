@@ -102,7 +102,8 @@ class UserModel extends Model
                 ->whereExists(function ($subquery) {
                     $subquery->select(DB::raw(1))
                         ->from('course_module_videos')
-                        ->whereColumn('course_module_videos.course_id', 'courses.id');
+                        ->whereColumn('course_module_videos.course_id', 'courses.id')
+                        ->where('course_module_videos.status', 'Active');
                 });
             if ($search) {
                 $query->where(function ($q) use ($search) {

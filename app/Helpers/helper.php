@@ -4,12 +4,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Request as REQ;
 use Aws\S3\S3Client;
 
 function generateOtp()
 {
-    return 1234;
-    // return rand(1111, 9999);
+    // return 1234;
+    return rand(1111, 9999);
 }
 
 function generateToken()
@@ -184,16 +185,16 @@ function singleAwsUpload(Request $request, $file_name, $path = 'images')
     if (in_array($fileExtension, $videoExtensions)) {
         $s3Client = new S3Client([
             'version' => 'latest',
-            'region'  => env('AWS_DEFAULT_REGION'),
+            'region' => env('AWS_DEFAULT_REGION'),
             'credentials' => [
-                'key'    => env('AWS_ACCESS_KEY_ID'),
+                'key' => env('AWS_ACCESS_KEY_ID'),
                 'secret' => env('AWS_SECRET_ACCESS_KEY'),
             ],
         ]);
         $tempFilePath = sys_get_temp_dir() . '/' . basename($filePath);
         $result = $s3Client->getObject([
             'Bucket' => env('AWS_BUCKET'),
-            'Key'    => $filePath,
+            'Key' => $filePath,
             'SaveAs' => $tempFilePath,
         ]);
         $getID3 = new getID3();
@@ -255,6 +256,46 @@ function sendMail($data)
         $message->subject($subject);
     });
     return true;
+}
+
+/**
+ * Encrypts data using AES-256-CBC encryption algorithm.
+ *
+ * @param mixed $data The data to be encrypted.
+ * @return string The encrypted data (base64-encoded).
+ */
+function encryptData($data)
+{
+    $key = REQ::header('Private-Key');
+    if ($key != DECRYPTIONKEY) {
+        $data = json_encode($data);
+        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+        $encryptedData = openssl_encrypt($data, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+        $encryptedData = base64_encode($iv . $encryptedData);
+        return $encryptedData;
+    } else {
+        return $data;
+    }
+}
+
+/**
+ * Decrypts AES-256-CBC encrypted data.
+ *
+ * @param string $encryptedData The encrypted data (base64-encoded).
+ * @return mixed The decrypted data, decoded from JSON if it was originally encoded.
+ */
+function decryptData($encryptedData)
+{
+    $key = DECRYPTIONKEY;
+    $data = base64_decode($encryptedData);
+    $ivLength = openssl_cipher_iv_length('aes-256-cbc');
+    $iv = substr($data, 0, $ivLength);
+    $encryptedPayload = substr($data, $ivLength);
+    $decryptedData = openssl_decrypt($encryptedPayload, 'aes-256-cbc', $key, 0, $iv);
+    if ($decryptedData === false) {
+        throw new Exception('Decryption failed.');
+    }
+    return json_decode($decryptedData, true);
 }
 
 function getUserByToken($token)
