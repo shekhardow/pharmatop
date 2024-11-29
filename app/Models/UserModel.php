@@ -148,7 +148,17 @@ class UserModel extends Model
     public static function getCourseByCategoryId($id, $per_page, $search = null)
     {
         $result = DB::transaction(function () use ($id, $per_page, $search) {
-            $query = DB::table('courses')->select('*')->where('category_id', $id)->where('status', 'Active');
+            $query = DB::table('courses')
+                ->select('courses.*')
+                ->where('courses.category_id', $id)
+                ->where('courses.status', 'Active')
+                ->whereExists(function ($subquery) {
+                    $subquery->select(DB::raw(1))
+                        ->from('course_module_videos')
+                        ->whereColumn('course_module_videos.course_id', 'courses.id')
+                        ->where('course_module_videos.status', 'Active');
+                });
+            ;
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('course_name', 'like', "%{$search}%")
@@ -400,7 +410,7 @@ class UserModel extends Model
                 DB::table('user_course_videos_status')->insert($data);
             }
 
-            $totalVideos = DB::table('course_module_videos')->where('course_id', $course_id)->count();
+            $totalVideos = DB::table('course_module_videos')->where('course_id', $course_id)->where('status', 'Active')->count();
             if ($totalVideos > 0) {
                 $completedVideos = DB::table('user_course_videos_status')
                     ->where('user_id', $user_id)

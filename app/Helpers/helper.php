@@ -267,7 +267,7 @@ function sendMail($data)
 function encryptData($data)
 {
     $key = REQ::header('Private-Key');
-    if ($key != DECRYPTIONKEY) {
+    if ($key != env('DECRYPTIONKEY')) {
         $data = json_encode($data);
         $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
         $encryptedData = openssl_encrypt($data, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
@@ -286,16 +286,18 @@ function encryptData($data)
  */
 function decryptData($encryptedData)
 {
-    $key = DECRYPTIONKEY;
-    $data = base64_decode($encryptedData);
-    $ivLength = openssl_cipher_iv_length('aes-256-cbc');
-    $iv = substr($data, 0, $ivLength);
-    $encryptedPayload = substr($data, $ivLength);
-    $decryptedData = openssl_decrypt($encryptedPayload, 'aes-256-cbc', $key, 0, $iv);
-    if ($decryptedData === false) {
-        throw new Exception('Decryption failed.');
+    $key = env('DECRYPTIONKEY');
+    $decodedPayload = json_decode(base64_decode($encryptedData), true);
+    if (!isset($decodedPayload['data'], $decodedPayload['hash'])) {
+        throw new Exception('Invalid encrypted data format.');
     }
-    return json_decode($decryptedData, true);
+    $data = $decodedPayload['data'];
+    $receivedHash = $decodedPayload['hash'];
+    $calculatedHash = base64_encode(hash_hmac('sha256', $data, $key, true));
+    if (!hash_equals($calculatedHash, $receivedHash)) {
+        throw new Exception('Decryption failed. Invalid hash or key mismatch.');
+    }
+    return json_decode($data, true);
 }
 
 function getUserByToken($token)

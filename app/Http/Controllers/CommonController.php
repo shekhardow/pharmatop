@@ -69,8 +69,7 @@ class CommonController extends Controller
                     'subject' => 'OTP For Forgot Password',
                     'view_name' => 'otp'
                 ];
-                // mail($user->email, 'OTP For Forgot Password', "Verification otp for reset password is <strong>$otp</strong>");
-                // sendMail($maildata);
+                sendMail($maildata);
                 update($user->source, 'id', $user->id, ['otp' => $otp]);
                 $user = CommonModel::getUserByEmail($user->email);
                 return response()->json(['result' => 1, 'msg' => 'Verification OTP has been sent to your email.', 'data' => $user]);
