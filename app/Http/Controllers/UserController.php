@@ -553,6 +553,15 @@ class UserController extends Controller
             }
             $result = UserModel::getAllCitiesByState($state_id);
             if ($result) {
+                if ($result->isEmpty()) {
+                    $state = select('states', 'name', ['id' => $state_id])->first();
+                    $result = [
+                        (object) [
+                            'id' => 0,
+                            'name' => $state->name
+                        ]
+                    ];
+                }
                 return response()->json(["result" => 1, "msg" => "Cities fetched successfully", 'data' => $result]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'No data found!']);
