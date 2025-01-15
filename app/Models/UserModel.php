@@ -98,13 +98,13 @@ class UserModel extends Model
         $result = DB::transaction(function () use ($per_page, $search) {
             $query = DB::table('courses')
                 ->select('courses.*')
-                ->where('courses.status', 'Active')
-                ->whereExists(function ($subquery) {
-                    $subquery->select(DB::raw(1))
-                        ->from('course_module_videos')
-                        ->whereColumn('course_module_videos.course_id', 'courses.id')
-                        ->where('course_module_videos.status', 'Active');
-                });
+                ->where('courses.status', 'Active');
+            // ->whereExists(function ($subquery) {
+            //     $subquery->select(DB::raw(1))
+            //         ->from('course_module_videos')
+            //         ->whereColumn('course_module_videos.course_id', 'courses.id')
+            //         ->where('course_module_videos.status', 'Active');
+            // });
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('course_name', 'like', "%{$search}%")
@@ -151,14 +151,13 @@ class UserModel extends Model
             $query = DB::table('courses')
                 ->select('courses.*')
                 ->where('courses.category_id', $id)
-                ->where('courses.status', 'Active')
-                ->whereExists(function ($subquery) {
-                    $subquery->select(DB::raw(1))
-                        ->from('course_module_videos')
-                        ->whereColumn('course_module_videos.course_id', 'courses.id')
-                        ->where('course_module_videos.status', 'Active');
-                });
-            ;
+                ->where('courses.status', 'Active');
+            // ->whereExists(function ($subquery) {
+            //     $subquery->select(DB::raw(1))
+            //         ->from('course_module_videos')
+            //         ->whereColumn('course_module_videos.course_id', 'courses.id')
+            //         ->where('course_module_videos.status', 'Active');
+            // });
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('course_name', 'like', "%{$search}%")
