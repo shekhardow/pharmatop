@@ -37,7 +37,7 @@ RUN chown -R www-data:www-data /var/www/html \
 RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 
 # Create a custom PHP configuration file
-RUN echo "memory_limit = 10G\nupload_max_filesize = 5G\npost_max_size = 5G\nmax_execution_time = 600\nmax_input_time = 600" > /usr/local/etc/php/conf.d/custom.ini
+RUN echo "memory_limit = 10G\nupload_max_filesize = 10G\npost_max_size = 10G\nmax_execution_time = 3600\nmax_input_time = 3600" > /usr/local/etc/php/conf.d/custom.ini
 
 # Expose port 5000
 EXPOSE 5000
