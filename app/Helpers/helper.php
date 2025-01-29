@@ -202,7 +202,7 @@ function singleAwsUpload(Request $request, $file_name, $path = 'images')
         $duration = isset($fileInfo['playtime_seconds']) ? (int) $fileInfo['playtime_seconds'] : null;
         unlink($tempFilePath);
     }
-    return (object) ['url' => $fileUrl, 'duration' => $duration,];
+    return (object) ['url' => $fileUrl, 'duration' => $duration];
 }
 
 // For Multiple AWS Uploads
