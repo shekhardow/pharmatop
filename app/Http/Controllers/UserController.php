@@ -604,6 +604,108 @@ class UserController extends Controller
         }
     }
 
+    public function initiateCheckout(Request $request)
+    {
+        try {
+            $token = $request->header('token');
+            $user = getUserByToken($token);
+
+            $validator = Validator::make($request->all(), [
+                'amount' => 'required',
+                'currency' => 'required',
+                'course_ids' => 'required',
+                'redirect_url' => 'required',
+            ], [
+                'required' => 'The :attribute field is required'
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['result' => 0, 'errors' => $validator->errors()]);
+            }
+
+            $amount = $request->post('amount');
+            $currency = $request->post('currency');
+            $course_ids = $request->post('course_ids');
+            $redirect_url = $request->post('redirect_url');
+            $course_prices = $request->post('course_prices');
+            $user_info = [
+                'name' => !empty($request->post('name')) ? $request->post('name') : null,
+                'email' => !empty($request->post('email')) ? $request->post('email') : null,
+                'address' => !empty($request->post('address')) ? $request->post('address') : null,
+                'country' => !empty($request->post('country')) ? $request->post('country') : null,
+                'state' => !empty($request->post('state')) ? $request->post('state') : null,
+                'city' => !empty($request->post('city')) ? $request->post('city') : null,
+                'pincode' => !empty($request->post('pincode')) ? $request->post('pincode') : null,
+            ];
+            $cidsenc = urlencode(json_encode($course_ids));
+            $cpricesenc = urlencode(json_encode($course_prices));
+            $uinfoenc = urlencode(json_encode($user_info));
+            $redirect_url_with_params = "{$redirect_url}&cur={$currency}&amt={$amount}&cids={$cidsenc}&cprices={$cpricesenc}&uinfo={$uinfoenc}";
+            $courses_amount = 0;
+            if (!empty($course_ids)) {
+                foreach ($course_ids as $course_id) {
+                    $course = UserModel::getCourseDetailsById($course_id);
+                    $courses_amount += $course->price;
+                }
+            }
+
+            if ($amount != $courses_amount) {
+                return response()->json([
+                    'result' => -1,
+                    'msg' => 'The provided amount does not match the total course amount!'
+                ]);
+            }
+
+            $payload = [
+                'amount' => $courses_amount * 100,
+                'currency' => $currency,
+                'redirect_url' => $redirect_url_with_params,
+                'description' => 'Payment for courses',
+                'customer' => [
+                    'name' => "$user->first_name $user->last_name",
+                    'email' => $user->email,
+                ],
+            ];
+
+            // Make the API call to Revolut
+            $client = new Client();
+            $response = $client->post('https://sandbox-merchant.revolut.com/api/orders', [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                    'Revolut-Api-Version' => '2024-09-01',
+                    'Authorization' => 'Bearer ' . env('REVOLUT_API_KEY'),
+                ],
+                'json' => $payload,
+            ]);
+
+            $responseData = json_decode($response->getBody(), true);
+
+            if (isset($responseData['id']) && isset($responseData['checkout_url'])) {
+                $insertData = [
+                    'user_id' => $user->id,
+                    'course_ids' => json_encode($course_ids),
+                    'currency' => $currency,
+                    'amount' => $courses_amount * 100,
+                    'redirect_url' => $redirect_url_with_params,
+                    'customer' => json_encode([
+                        'name' => "$user->first_name $user->last_name",
+                        'email' => $user->email,
+                    ]),
+                ];
+                UserModel::createOrder($insertData);
+                return response()->json([
+                    'result' => 1,
+                    'msg' => 'Payment order created successfully',
+                    'data' => $responseData
+                ]);
+            } else {
+                return response()->json(['result' => -1, 'msg' => 'Failed to create payment order']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
     public function checkout(Request $request)
     {
         try {
@@ -614,7 +716,6 @@ class UserController extends Controller
                 'course_ids' => 'required',
                 'course_prices' => 'required',
                 'total_amount' => 'required',
-                'payment_intent_id' => 'required'
             ], [
                 'required' => 'The :attribute field is required'
             ]);
@@ -624,8 +725,8 @@ class UserController extends Controller
 
             $course_ids = $request->post('course_ids');
             $course_prices = $request->post('course_prices');
+            $currency = $request->post('currency');
             $total_amount = $request->post('total_amount');
-            $payment_intent_id = $request->post('payment_intent_id');
 
             $courses_amount = 0;
             if (!empty($course_ids)) {
@@ -634,15 +735,16 @@ class UserController extends Controller
                     $courses_amount += $course->price;
                 }
             }
-            // dd($courses_amount);
 
-            Stripe::setApiKey(env('STRIPE_SECRET'));
+            if ($total_amount != $courses_amount) {
+                return response()->json([
+                    'result' => -1,
+                    'msg' => 'The provided amount does not match the total course amount!'
+                ]);
+            }
 
-            $paymentIntent = PaymentIntent::retrieve($payment_intent_id);
-
-            // if ($paymentIntent->status != 'succeeded') {
-            //     return response()->json(['result' => -1, 'msg' => 'Payment failed!']);
-            // }
+            // Stripe::setApiKey(env('STRIPE_SECRET'));
+            // $paymentIntent = PaymentIntent::retrieve($payment_intent_id);
 
             $data = [
                 'user_id' => $user_id,
@@ -654,8 +756,8 @@ class UserController extends Controller
                 'state' => !empty($request->post('state')) ? $request->post('state') : null,
                 'city' => !empty($request->post('city')) ? $request->post('city') : null,
                 'pincode' => !empty($request->post('pincode')) ? $request->post('pincode') : null,
-                'payment_method' => $paymentIntent->payment_method,
-                'currency' => $paymentIntent->currency,
+                'payment_method' => "Revolut",
+                'currency' => $currency,
                 'amount' => !empty($courses_amount) ? $courses_amount : null
             ];
 

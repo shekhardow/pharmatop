@@ -113,6 +113,7 @@ Route::group(['middleware' => EncryptDecryptMiddleware::class], function () {
             Route::get('/getAllCartItems', [UserController::class, 'getAllCartItems']);
 
             Route::post('/createPaymentIntent', [UserController::class, 'createPaymentIntent']);
+            Route::post('/initiateCheckout', [UserController::class, 'initiateCheckout']);
             Route::post('/checkout', [UserController::class, 'checkout']);
             Route::get('/getAllUserPurchasedCourses', [UserController::class, 'getAllUserPurchasedCourses']);
 

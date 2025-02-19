@@ -326,6 +326,15 @@ class UserModel extends Model
         return $result;
     }
 
+    public static function createOrder($insertData)
+    {
+        $result = DB::transaction(function () use ($insertData) {
+            $id = DB::table('user_orders')->insertGetId($insertData);
+            return $id;
+        });
+        return $result;
+    }
+
     public static function checkout($user_id, $data, $course_ids, $course_prices)
     {
         $result = DB::transaction(function () use ($user_id, $data, $course_ids, $course_prices) {

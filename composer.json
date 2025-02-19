@@ -11,6 +11,7 @@
         "php": "^8.2",
         "aws/aws-sdk-php": "^3.321",
         "barryvdh/laravel-snappy": "^1.0",
+        "guzzlehttp/guzzle": "^7.9",
         "james-heinrich/getid3": "^1.9",
         "laravel/framework": "^11.9",
         "laravel/sanctum": "^4.0",
