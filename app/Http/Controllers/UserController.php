@@ -628,8 +628,8 @@ class UserController extends Controller
             $redirect_url = $request->post('redirect_url');
             $course_prices = $request->post('course_prices');
             $user_info = [
-                'name' => !empty($request->post('name')) ? $request->post('name') : null,
-                'email' => !empty($request->post('email')) ? $request->post('email') : null,
+                'name' => "$user->first_name $user->last_name",
+                'email' => $user->email,
                 'address' => !empty($request->post('address')) ? $request->post('address') : null,
                 'country' => !empty($request->post('country')) ? $request->post('country') : null,
                 'state' => !empty($request->post('state')) ? $request->post('state') : null,
