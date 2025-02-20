@@ -741,43 +741,40 @@ class UserController extends Controller
 
         switch ($event['event']) {
             case 'ORDER_COMPLETED':
-                \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
-                DB::table('user_orders')->updateOrInsert(
-                    ['order_id' => $event['order_id']],
-                    ['payment_status' => "Success", 'updated_at' => now()]
-                );
-                DB::table('user_payments')->updateOrInsert(
-                    ['order_id' => $event['order_id']],
-                    ['status' => "Active", 'payment_status' => "Success", 'updated_at' => now()]
-                );
+                // \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
+                DB::table('user_orders')
+                    ->where('order_id', $event['order_id'])
+                    ->update(['payment_status' => "Success", 'updated_at' => now()]);
+
+                DB::table('user_payments')
+                    ->where('order_id', $event['order_id'])
+                    ->update(['status' => "Active", 'payment_status' => "Success", 'updated_at' => now()]);
                 break;
 
             case 'ORDER_AUTHORISED':
-                \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
-                DB::table('user_orders')->updateOrInsert(
-                    ['order_id' => $event['order_id']],
-                    ['payment_status' => "Authorised", 'updated_at' => now()]
-                );
-                DB::table('user_payments')->updateOrInsert(
-                    ['order_id' => $event['order_id']],
-                    ['status' => "Active", 'payment_status' => "Authorised", 'updated_at' => now()]
-                );
+                // \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
+                DB::table('user_orders')
+                    ->where('order_id', $event['order_id'])
+                    ->update(['payment_status' => "Authorised", 'updated_at' => now()]);
+
+                DB::table('user_payments')
+                    ->where('order_id', $event['order_id'])
+                    ->update(['status' => "Active", 'payment_status' => "Authorised", 'updated_at' => now()]);
                 break;
 
             case 'ORDER_CANCELLED':
-                \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
-                DB::table('user_orders')->updateOrInsert(
-                    ['order_id' => $event['order_id']],
-                    ['payment_status' => "Failed", 'updated_at' => now()]
-                );
-                DB::table('user_payments')->updateOrInsert(
-                    ['order_id' => $event['order_id']],
-                    ['status' => "Active", 'payment_status' => "Failed", 'updated_at' => now()]
-                );
+                // \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
+                DB::table('user_orders')
+                    ->where('order_id', $event['order_id'])
+                    ->update(['payment_status' => "Failed", 'updated_at' => now()]);
+
+                DB::table('user_payments')
+                    ->where('order_id', $event['order_id'])
+                    ->update(['status' => "Active", 'payment_status' => "Failed", 'updated_at' => now()]);
                 break;
 
             default:
-                \Log::info('Unhandled webhook event: ' . $event['event']);
+                \Log::info('Unhandled webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
         }
 
         return response()->json(null, 204);
