@@ -681,18 +681,37 @@ class UserController extends Controller
             $responseData = json_decode($response->getBody(), true);
 
             if (isset($responseData['id']) && isset($responseData['checkout_url'])) {
-                $insertData = [
+                $orderData = [
+                    'order_id' => $responseData['id'],
                     'user_id' => $user->id,
                     'course_ids' => json_encode($course_ids),
                     'currency' => $currency,
-                    'amount' => $courses_amount * 100,
+                    'amount' => $courses_amount,
                     'redirect_url' => $redirect_url_with_params,
                     'customer' => json_encode([
                         'name' => "$user->first_name $user->last_name",
                         'email' => $user->email,
                     ]),
                 ];
-                UserModel::createOrder($insertData);
+                $paymentData = [
+                    'order_id' => $responseData['id'],
+                    'user_id' => $user->id,
+                    'course_ids' => !empty($course_ids) ? json_encode($course_ids) : null,
+                    'name' => "$user->first_name $user->last_name",
+                    'email' => $user->email,
+                    'address' => !empty($request->post('address')) ? $request->post('address') : null,
+                    'country' => !empty($request->post('country')) ? $request->post('country') : null,
+                    'state' => !empty($request->post('state')) ? $request->post('state') : null,
+                    'city' => !empty($request->post('city')) ? $request->post('city') : null,
+                    'pincode' => !empty($request->post('pincode')) ? $request->post('pincode') : null,
+                    'payment_method' => "Revolut",
+                    'currency' => $currency,
+                    'amount' => !empty($courses_amount) ? $courses_amount : null,
+                    'status' => "Inactive",
+                    'payment_status' => "Pending"
+                ];
+                UserModel::createOrder($orderData);
+                UserModel::createPayment($paymentData);
                 return response()->json([
                     'result' => 1,
                     'msg' => 'Payment order created successfully',
@@ -701,6 +720,75 @@ class UserController extends Controller
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Failed to create payment order']);
             }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function handleRevolutWebhook(Request $request)
+    {
+        $signature = $request->header('Revolut-Signature');
+        $timestamp = $request->header('Revolut-Request-Timestamp');
+
+        $payload = $request->getContent();
+        $secret = env('REVOLUT_WEBHOOK_SECRET');
+
+        if (!($signature !== $secret)) {
+            return response()->json(['error' => 'Invalid signature'], 401);
+        }
+
+        $event = json_decode($payload, true);
+
+        switch ($event['event']) {
+            case 'ORDER_COMPLETED':
+                \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
+                DB::table('user_orders')->updateOrInsert(
+                    ['order_id' => $event['order_id']],
+                    ['payment_status' => "Success", 'updated_at' => now()]
+                );
+                DB::table('user_payments')->updateOrInsert(
+                    ['order_id' => $event['order_id']],
+                    ['status' => "Active", 'payment_status' => "Success", 'updated_at' => now()]
+                );
+                break;
+
+            case 'ORDER_AUTHORISED':
+                \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
+                DB::table('user_orders')->updateOrInsert(
+                    ['order_id' => $event['order_id']],
+                    ['payment_status' => "Authorised", 'updated_at' => now()]
+                );
+                DB::table('user_payments')->updateOrInsert(
+                    ['order_id' => $event['order_id']],
+                    ['status' => "Active", 'payment_status' => "Authorised", 'updated_at' => now()]
+                );
+                break;
+
+            case 'ORDER_CANCELLED':
+                \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
+                DB::table('user_orders')->updateOrInsert(
+                    ['order_id' => $event['order_id']],
+                    ['payment_status' => "Failed", 'updated_at' => now()]
+                );
+                DB::table('user_payments')->updateOrInsert(
+                    ['order_id' => $event['order_id']],
+                    ['status' => "Active", 'payment_status' => "Failed", 'updated_at' => now()]
+                );
+                break;
+
+            default:
+                \Log::info('Unhandled webhook event: ' . $event['event']);
+        }
+
+        return response()->json(null, 204);
+    }
+
+    public function getPaymentStatus($orderId)
+    {
+        try {
+            $payment = UserModel::getPaymentStatus($orderId);
+
+            return response()->json(['result' => 1, 'status' => $payment->payment_status], 200);
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
         }
@@ -716,6 +804,7 @@ class UserController extends Controller
                 'course_ids' => 'required',
                 'course_prices' => 'required',
                 'total_amount' => 'required',
+                'order_id' => 'required',
             ], [
                 'required' => 'The :attribute field is required'
             ]);
@@ -727,6 +816,7 @@ class UserController extends Controller
             $course_prices = $request->post('course_prices');
             $currency = $request->post('currency');
             $total_amount = $request->post('total_amount');
+            $order_id = $request->post('order_id');
 
             $courses_amount = 0;
             if (!empty($course_ids)) {
@@ -743,9 +833,6 @@ class UserController extends Controller
                 ]);
             }
 
-            // Stripe::setApiKey(env('STRIPE_SECRET'));
-            // $paymentIntent = PaymentIntent::retrieve($payment_intent_id);
-
             $data = [
                 'user_id' => $user_id,
                 'course_ids' => !empty($course_ids) ? json_encode($course_ids) : null,
@@ -761,7 +848,7 @@ class UserController extends Controller
                 'amount' => !empty($courses_amount) ? $courses_amount : null
             ];
 
-            $result = UserModel::checkout($user_id, $data, $course_ids, $course_prices);
+            $result = UserModel::checkout($order_id, $user_id, $data, $course_ids, $course_prices);
 
             if (!empty($result)) {
                 return response()->json(['result' => 1, 'msg' => 'Payment successful', 'data' => true]);

@@ -335,24 +335,44 @@ class UserModel extends Model
         return $result;
     }
 
-    public static function checkout($user_id, $data, $course_ids, $course_prices)
+    public static function createPayment($insertData)
     {
-        $result = DB::transaction(function () use ($user_id, $data, $course_ids, $course_prices) {
-            $id = DB::table('user_payments')->insertGetId($data);
-            if (!empty($id)) {
-                $purchasedCourses = [];
-                foreach ($course_ids as $index => $course_id) {
-                    $purchasedCourses[] = [
-                        'user_id' => $user_id,
-                        'course_id' => $course_id,
-                        'purchased_amount' => $course_prices[$index],
-                        'payment_id' => $id
-                    ];
-                }
-                DB::table('user_purchased_courses')->insert($purchasedCourses);
-                return $id;
+        $result = DB::transaction(function () use ($insertData) {
+            $id = DB::table('user_payments')->insertGetId($insertData);
+            return $id;
+        });
+        return $result;
+    }
+
+    public static function checkout($order_id, $user_id, $data, $course_ids, $course_prices)
+    {
+        $result = DB::transaction(function () use ($order_id, $user_id, $data, $course_ids, $course_prices) {
+            if (!empty($order_id)) {
+                DB::table('user_payments')->where('order_id', $order_id)->update($data);
+            } else {
+                $order_id = DB::table('user_payments')->insertGetId($data);
             }
-            return false;
+
+            $purchasedCourses = [];
+            foreach ($course_ids as $index => $course_id) {
+                $purchasedCourses[] = [
+                    'user_id' => $user_id,
+                    'course_id' => $course_id,
+                    'purchased_amount' => $course_prices[$index],
+                    'payment_id' => $order_id
+                ];
+            }
+            DB::table('user_purchased_courses')->insert($purchasedCourses);
+
+            return $order_id;
+        });
+        return $result;
+    }
+
+    public static function getPaymentStatus($orderId)
+    {
+        $result = DB::transaction(function () use ($orderId) {
+            return DB::table('user_payments')->select('*')->where('order_id', $orderId)->first();
         });
         return $result;
     }

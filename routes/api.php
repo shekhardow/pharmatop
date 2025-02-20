@@ -115,6 +115,7 @@ Route::group(['middleware' => EncryptDecryptMiddleware::class], function () {
             Route::post('/createPaymentIntent', [UserController::class, 'createPaymentIntent']);
             Route::post('/initiateCheckout', [UserController::class, 'initiateCheckout']);
             Route::post('/checkout', [UserController::class, 'checkout']);
+            Route::get('/getPaymentStatus/{orderId}', [UserController::class, 'getPaymentStatus']);
             Route::get('/getAllUserPurchasedCourses', [UserController::class, 'getAllUserPurchasedCourses']);
 
             Route::post('/completeVideo', [UserController::class, 'completeVideo']);
@@ -122,5 +123,6 @@ Route::group(['middleware' => EncryptDecryptMiddleware::class], function () {
 
             Route::post('/logout', [UserController::class, 'logout']);
         });
+        Route::post('/revolut-webhook', [UserController::class, 'handleRevolutWebhook']);
     });
 });
