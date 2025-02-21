@@ -349,6 +349,7 @@ class UserModel extends Model
         $result = DB::transaction(function () use ($order_id, $user_id, $data, $course_ids, $course_prices) {
             if (!empty($order_id)) {
                 DB::table('user_payments')->where('order_id', $order_id)->update($data);
+                $id = DB::table('user_payments')->where('order_id', $order_id)->value('id');
             } else {
                 $id = DB::table('user_payments')->insertGetId($data);
             }
@@ -364,7 +365,7 @@ class UserModel extends Model
             }
             DB::table('user_purchased_courses')->insert($purchasedCourses);
 
-            return $order_id;
+            return $id;
         });
         return $result;
     }
