@@ -356,14 +356,24 @@ class UserModel extends Model
 
             $purchasedCourses = [];
             foreach ($course_ids as $index => $course_id) {
-                $purchasedCourses[] = [
-                    'user_id' => $user_id,
-                    'course_id' => $course_id,
-                    'purchased_amount' => $course_prices[$index],
-                    'payment_id' => $id
-                ];
+                $existingPurchase = DB::table('user_purchased_courses')
+                    ->where('user_id', $user_id)
+                    ->where('course_id', $course_id)
+                    ->exists();
+
+                if (!$existingPurchase) {
+                    $purchasedCourses[] = [
+                        'user_id' => $user_id,
+                        'course_id' => $course_id,
+                        'purchased_amount' => $course_prices[$index],
+                        'payment_id' => $id
+                    ];
+                }
             }
-            DB::table('user_purchased_courses')->insert($purchasedCourses);
+
+            if (!empty($purchasedCourses)) {
+                DB::table('user_purchased_courses')->insert($purchasedCourses);
+            }
 
             return $id;
         });
