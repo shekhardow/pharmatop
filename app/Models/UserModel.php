@@ -350,7 +350,7 @@ class UserModel extends Model
             if (!empty($order_id)) {
                 DB::table('user_payments')->where('order_id', $order_id)->update($data);
             } else {
-                $order_id = DB::table('user_payments')->insertGetId($data);
+                $id = DB::table('user_payments')->insertGetId($data);
             }
 
             $purchasedCourses = [];
@@ -359,7 +359,7 @@ class UserModel extends Model
                     'user_id' => $user_id,
                     'course_id' => $course_id,
                     'purchased_amount' => $course_prices[$index],
-                    'payment_id' => $order_id
+                    'payment_id' => $id
                 ];
             }
             DB::table('user_purchased_courses')->insert($purchasedCourses);
