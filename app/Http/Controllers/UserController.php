@@ -668,7 +668,7 @@ class UserController extends Controller
 
             // Make the API call to Revolut
             $client = new Client();
-            $response = $client->post('https://sandbox-merchant.revolut.com/api/orders', [
+            $response = $client->post('https://merchant.revolut.com/api/orders', [
                 'headers' => [
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
