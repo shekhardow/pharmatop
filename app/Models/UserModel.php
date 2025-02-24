@@ -93,9 +93,9 @@ class UserModel extends Model
         return $result;
     }
 
-    public static function getAllCourses($per_page, $search = null)
+    public static function getAllCourses($per_page, $search = null, $user_id = null)
     {
-        $result = DB::transaction(function () use ($per_page, $search) {
+        $result = DB::transaction(function () use ($per_page, $search, $user_id) {
             $query = DB::table('courses')
                 ->select('courses.*')
                 ->where('courses.status', 'Active');
@@ -116,6 +116,19 @@ class UserModel extends Model
                         ->orWhere('duration', 'like', "%{$search}%");
                 });
             }
+
+            // For Testing Accounts showing the courses with prices 0
+            $isTestAccount = false;
+            if ($user_id) {
+                $isTestAccount = DB::table('users')->where('id', $user_id)->value('test_account') == "true";
+            }
+            $query->where(function ($q) use ($isTestAccount) {
+                $q->where('price', '>', 0); // Showing courses with price > 0 to all users
+                if ($isTestAccount) {
+                    $q->orWhere('price', '=', 0); // Showing free courses only if test_account is true
+                }
+            });
+
             return $query->paginate($per_page);
         });
         return $result;
@@ -145,9 +158,9 @@ class UserModel extends Model
         return $result;
     }
 
-    public static function getCourseByCategoryId($id, $per_page, $search = null)
+    public static function getCourseByCategoryId($id, $per_page, $search = null, $user_id = null)
     {
-        $result = DB::transaction(function () use ($id, $per_page, $search) {
+        $result = DB::transaction(function () use ($id, $per_page, $search, $user_id) {
             $query = DB::table('courses')
                 ->select('courses.*')
                 ->where('courses.category_id', $id)
@@ -169,15 +182,45 @@ class UserModel extends Model
                         ->orWhere('duration', 'like', "%{$search}%");
                 });
             }
+
+            // For Testing Accounts showing the courses with prices 0
+            $isTestAccount = false;
+            if ($user_id) {
+                $isTestAccount = DB::table('users')->where('id', $user_id)->value('test_account') == "true";
+            }
+            $query->where(function ($q) use ($isTestAccount) {
+                $q->where('price', '>', 0); // Showing courses with price > 0 to all users
+                if ($isTestAccount) {
+                    $q->orWhere('price', '=', 0); // Showing free courses only if test_account is true
+                }
+            });
+
             return $query->paginate($per_page);
         });
         return $result;
     }
 
-    public static function getCourseDetailsById($id)
+    public static function getCourseDetailsById($id, $user_id = null)
     {
-        $result = DB::transaction(function () use ($id) {
-            return DB::table('courses')->select('*')->where('id', $id)->where('status', 'Active')->first();
+        $result = DB::transaction(function () use ($id, $user_id) {
+            // For Testing Accounts showing the courses with prices 0
+            $isTestAccount = false;
+            if ($user_id) {
+                $isTestAccount = DB::table('users')->where('id', $user_id)->value('test_account') == "true";
+            }
+
+            return DB::table('courses')
+                ->select('*')
+                ->where('id', $id)
+                ->where('status', 'Active')
+                ->where(function ($q) use ($isTestAccount) {
+                    $q->where('price', '>', 0); // Show courses with price > 0 to all users
+    
+                    if ($isTestAccount) {
+                        $q->orWhere('price', '=', 0); // Show free courses only if test_account is true
+                    }
+                })
+                ->first();
         });
         return $result;
     }

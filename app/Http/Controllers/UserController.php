@@ -276,7 +276,7 @@ class UserController extends Controller
 
             $per_page = $request->query('per_page') ?? 10;
             $search = $request->query('search') ?? null;
-            $result = UserModel::getAllCourses($per_page, $search);
+            $result = UserModel::getAllCourses($per_page, $search, $user_id);
             if (!empty($result)) {
                 foreach ($result as $value) {
                     if (!$guest) {
@@ -317,7 +317,7 @@ class UserController extends Controller
             }
             $per_page = $request->query('per_page') ?? 10;
             $search = $request->query('search') ?? null;
-            $result = UserModel::getCourseByCategoryId($id, $per_page, $search);
+            $result = UserModel::getCourseByCategoryId($id, $per_page, $search, $user_id);
             if (!empty($result)) {
                 foreach ($result as $value) {
                     if (!$guest) {
@@ -356,7 +356,7 @@ class UserController extends Controller
             if (empty($id)) {
                 return response()->json(['result' => 0, 'errors' => 'Id is required!']);
             }
-            $result = UserModel::getCourseDetailsById($id);
+            $result = UserModel::getCourseDetailsById($id, $user_id);
             if (!empty($result)) {
                 if (!$guest) {
                     $isPurchased = UserModel::isCoursePurchased($result->id, $user_id);
