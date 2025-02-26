@@ -62,16 +62,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.339.19",
+            "version": "3.340.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "18f05efe983860ad899082e04c13f06ec9fd6e41"
+                "reference": "435aa3c9867d11df4ba4d5c3d11c7b1696dc3898"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/18f05efe983860ad899082e04c13f06ec9fd6e41",
-                "reference": "18f05efe983860ad899082e04c13f06ec9fd6e41",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/435aa3c9867d11df4ba4d5c3d11c7b1696dc3898",
+                "reference": "435aa3c9867d11df4ba4d5c3d11c7b1696dc3898",
                 "shasum": ""
             },
             "require": {
@@ -153,32 +153,32 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.339.19"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.340.0"
             },
-            "time": "2025-02-21T19:13:15+00:00"
+            "time": "2025-02-24T20:28:24+00:00"
         },
         {
             "name": "barryvdh/laravel-snappy",
-            "version": "v1.0.3",
+            "version": "v1.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/barryvdh/laravel-snappy.git",
-                "reference": "716dcb6db24de4ce8e6ae5941cfab152af337ea0"
+                "reference": "5b8668e4a54be630973fd309b4cb1abe75a8afbb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/barryvdh/laravel-snappy/zipball/716dcb6db24de4ce8e6ae5941cfab152af337ea0",
-                "reference": "716dcb6db24de4ce8e6ae5941cfab152af337ea0",
+                "url": "https://api.github.com/repos/barryvdh/laravel-snappy/zipball/5b8668e4a54be630973fd309b4cb1abe75a8afbb",
+                "reference": "5b8668e4a54be630973fd309b4cb1abe75a8afbb",
                 "shasum": ""
             },
             "require": {
-                "illuminate/filesystem": "^9|^10|^11.0",
-                "illuminate/support": "^9|^10|^11.0",
+                "illuminate/filesystem": "^9|^10|^11|^12",
+                "illuminate/support": "^9|^10|^11|^12",
                 "knplabs/knp-snappy": "^1.4.4",
-                "php": ">=7.2"
+                "php": "^8.1"
             },
             "require-dev": {
-                "orchestra/testbench": "^7|^8|^9.0"
+                "orchestra/testbench": "^7|^8|^9|^10"
             },
             "type": "library",
             "extra": {
@@ -221,7 +221,7 @@
             ],
             "support": {
                 "issues": "https://github.com/barryvdh/laravel-snappy/issues",
-                "source": "https://github.com/barryvdh/laravel-snappy/tree/v1.0.3"
+                "source": "https://github.com/barryvdh/laravel-snappy/tree/v1.0.4"
             },
             "funding": [
                 {
@@ -233,7 +233,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-03-09T19:20:39+00:00"
+            "time": "2025-02-24T15:20:06+00:00"
         },
         {
             "name": "brick/math",
@@ -7405,16 +7405,16 @@
         },
         {
             "name": "phpunit/phpunit",
-            "version": "11.5.9",
+            "version": "11.5.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "c91c830e7108a81e5845aeb6ba8fe3c1a4351c0b"
+                "reference": "d5df2b32d729562ff8db634678d71085ee579006"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/c91c830e7108a81e5845aeb6ba8fe3c1a4351c0b",
-                "reference": "c91c830e7108a81e5845aeb6ba8fe3c1a4351c0b",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/d5df2b32d729562ff8db634678d71085ee579006",
+                "reference": "d5df2b32d729562ff8db634678d71085ee579006",
                 "shasum": ""
             },
             "require": {
@@ -7486,7 +7486,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/phpunit/issues",
                 "security": "https://github.com/sebastianbergmann/phpunit/security/policy",
-                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.9"
+                "source": "https://github.com/sebastianbergmann/phpunit/tree/11.5.10"
             },
             "funding": [
                 {
@@ -7502,7 +7502,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2025-02-21T06:08:50+00:00"
+            "time": "2025-02-25T06:11:48+00:00"
         },
         {
             "name": "sebastian/cli-parser",

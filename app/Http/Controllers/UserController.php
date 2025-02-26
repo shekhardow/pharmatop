@@ -848,6 +848,8 @@ class UserController extends Controller
             $result = UserModel::checkout($order_id, $user_id, $data, $course_ids, $course_prices);
 
             if (!empty($result)) {
+                $payment_id = $result->id;
+                $this->generateInvoice($payment_id);
                 return response()->json(['result' => 1, 'msg' => 'Payment successful', 'data' => true]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
@@ -1036,6 +1038,97 @@ class UserController extends Controller
             ->header('Content-Transfer-Encoding', 'binary')
             ->header('Accept-Ranges', 'bytes');
     }
+
+    public function generateInvoice($payment_id)
+    {
+            $payment = select('user_payments', '*', ['id' => $payment_id])->first();
+
+            if (!$payment) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid payment ID']);
+            }
+
+            $user_id = $payment->user_id;
+            $course_ids = json_decode($payment->course_ids, true); // Decode JSON array
+
+            if (!is_array($course_ids) || empty($course_ids)) {
+                return response()->json(['result' => -1, 'msg' => 'No courses found for this payment.']);
+            }
+
+            $courses = DB::table('courses')->whereIn('id', $course_ids)->get();
+
+            $course_details = [];
+            $total_price = 0; // To store the total price
+            foreach ($courses as $course) {
+                $course_details[] = [
+                    'name' => $course->course_name,
+                    'price' => number_format($course->price, 2),
+                    'description' => $course->description ?? 'No description available',
+                ];
+                // Adding the course price to the total price
+                $total_price += $course->price;
+            }
+
+            // Calculate tax (10%)
+            $tax = $total_price * 0.10; // 10% tax
+            $total_after_tax = $total_price + $tax; // Total after tax
+
+            $student_name = $payment->first_name;
+            $completion_date = now()->format('dS F, Y');
+
+            // dd($total_price,$tax,$total_after_tax);
+
+
+            $pdf = PDF::loadView('pdf.invoice', compact('student_name', 'course_details', 'completion_date', 'payment', 'total_price', 'tax', 'total_after_tax'))
+                ->setOption('margin-top', 0)
+                ->setOption('margin-right', 0)
+                ->setOption('margin-bottom', 0)
+                ->setOption('margin-left', 0)
+                ->setOption('dpi', 300)
+                ->setOption('enable-local-file-access', true)
+                ->setOption('no-images', false)
+                ->setOption('image-quality', 100);
+
+            $fileName = "invoice-$user_id-$payment_id.pdf";
+            $tempFilePath = storage_path("app/public/invoices/{$fileName}");
+
+            // Save the PDF locally
+            Storage::disk('public')->put("invoices/{$fileName}", $pdf->output());
+
+            if (!Storage::disk('public')->exists("invoices/{$fileName}")) {
+                return response()->json(['result' => -1, 'msg' => 'Failed to generate the PDF!']);
+            }
+
+            $fileKey = 'invoice';
+            $newRequest = new Request();
+            $newRequest->files->set($fileKey, new UploadedFile(
+                $tempFilePath,
+                $fileName,
+                'application/pdf',
+                filesize($tempFilePath),
+                true
+            ));
+
+            $uploadResult = singleAwsUpload($newRequest, $fileKey, 'invoices');
+
+            if (!$uploadResult || !isset($uploadResult->url)) {
+                return response()->json(['result' => -1, 'msg' => 'File upload to S3 failed.']);
+            }
+
+            $invoiceUrl = $uploadResult->url;
+
+            // dd($invoiceUrl);
+            update('user_payments', 'id', $payment_id,['invoice_file' => $invoiceUrl] );
+            if (file_exists($tempFilePath)) {
+                unlink($tempFilePath);
+            }
+
+            return response()->json(['result'=>1, 'msg'=>"Invoice Generated and uploaded", 'data'=>$invoiceUrl]);
+
+    }
+
+
+
+
 
     public function logout(Request $request)
     {
