@@ -244,16 +244,25 @@ function uniqueId()
     return $unique_id;
 }
 
-function sendMail($data)
+function sendMail($data, $tempFilePath = null)
 {
+    $tempFilePath = str_replace('/', DIRECTORY_SEPARATOR, $tempFilePath);
     $from = env('MAIL_FROM_ADDRESS', 'example@gmail.com');
     $to = $data['to'];
     $subject = $data['subject'];
     $view = 'mail.' . $data['view_name'];
-    Mail::send($view, $data, function ($message) use ($from, $to, $subject) {
+    Mail::send($view, $data, function ($message) use ($from, $to, $subject, $tempFilePath) {
         $message->from($from, 'Pharmatop');
         $message->to($to);
         $message->subject($subject);
+
+        // Attach file if provided
+        if (!empty($tempFilePath) && file_exists($tempFilePath)) {
+            $message->attach($tempFilePath, [
+                'as' => 'Invoice.pdf',
+                'mime' => 'application/pdf'
+            ]);
+        }
     });
     return true;
 }

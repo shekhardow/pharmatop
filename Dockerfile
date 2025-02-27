@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     fontconfig \
     nano \
     wkhtmltopdf \
+    supervisor \
     && docker-php-ext-install pdo_mysql exif pcntl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd
@@ -42,5 +43,8 @@ RUN echo "memory_limit = 10G\nupload_max_filesize = 10G\npost_max_size = 10G\nma
 # Expose port 5000
 EXPOSE 5000
 
-# Start the Laravel application
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=5000"]
+# Copy supervisord.conf into the container
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Start the application with Supervisor to manage queue worker
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

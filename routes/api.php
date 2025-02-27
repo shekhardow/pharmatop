@@ -120,8 +120,6 @@ Route::group(['middleware' => EncryptDecryptMiddleware::class], function () {
 
             Route::post('/completeVideo', [UserController::class, 'completeVideo']);
             Route::post('/generateCertificate', [UserController::class, 'generateCertificate']);
-            // Route::get('/generateInvoice/{payment_id}', [UserController::class, 'generateInvoice']);
-
 
             Route::post('/logout', [UserController::class, 'logout']);
         });

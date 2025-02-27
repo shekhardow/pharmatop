@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateInvoiceJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
@@ -668,7 +669,7 @@ class UserController extends Controller
 
             // Make the API call to Revolut
             $client = new Client();
-            $response = $client->post('https://merchant.revolut.com/api/orders', [
+            $response = $client->post('https://sandbox-merchant.revolut.com/api/orders', [
                 'headers' => [
                     'Content-Type' => 'application/json',
                     'Accept' => 'application/json',
@@ -741,7 +742,7 @@ class UserController extends Controller
 
         switch ($event['event']) {
             case 'ORDER_COMPLETED':
-                // \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
+                \Log::info('Webhook event: ' . json_encode($event, JSON_PRETTY_PRINT));
                 DB::table('user_orders')
                     ->where('order_id', $event['order_id'])
                     ->update(['payment_status' => "Success", 'updated_at' => now()]);
@@ -749,6 +750,9 @@ class UserController extends Controller
                 DB::table('user_payments')
                     ->where('order_id', $event['order_id'])
                     ->update(['status' => "Active", 'payment_status' => "Success", 'updated_at' => now()]);
+
+                $payment = DB::table('user_payments')->where('order_id', $event['order_id'])->first();
+                GenerateInvoiceJob::dispatch($payment);
                 break;
 
             case 'ORDER_AUTHORISED':
@@ -795,7 +799,7 @@ class UserController extends Controller
     {
         try {
             $token = $request->header('token');
-            $user_id = getUserByToken($token)->id;
+            $user = getUserByToken($token);
 
             $validator = Validator::make($request->all(), [
                 'course_ids' => 'required',
@@ -831,10 +835,10 @@ class UserController extends Controller
             }
 
             $data = [
-                'user_id' => $user_id,
+                'user_id' => $user->id,
                 'course_ids' => !empty($course_ids) ? json_encode($course_ids) : null,
-                'name' => !empty($request->post('name')) ? $request->post('name') : null,
-                'email' => !empty($request->post('email')) ? $request->post('email') : null,
+                'name' => !empty($user->first_name) ? "$user->first_name $user->last_name" : null,
+                'email' => !empty($user->email) ? $user->email : null,
                 'address' => !empty($request->post('address')) ? $request->post('address') : null,
                 'country' => !empty($request->post('country')) ? $request->post('country') : null,
                 'state' => !empty($request->post('state')) ? $request->post('state') : null,
@@ -845,14 +849,97 @@ class UserController extends Controller
                 'amount' => !empty($courses_amount) ? $courses_amount : null
             ];
 
-            $result = UserModel::checkout($order_id, $user_id, $data, $course_ids, $course_prices);
+            $result = UserModel::checkout($order_id, $user->id, $data, $course_ids, $course_prices);
 
             if (!empty($result)) {
-                $payment_id = $result->id;
-                $this->generateInvoice($payment_id);
                 return response()->json(['result' => 1, 'msg' => 'Payment successful', 'data' => true]);
             } else {
                 return response()->json(['result' => -1, 'msg' => 'Something went wrong!']);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
+        }
+    }
+
+    public function generateInvoice($payment)
+    {
+        try {
+            $user = UserModel::getUserById($payment->user_id);
+            if (!$payment->order_id) {
+                return response()->json(['result' => -1, 'msg' => 'Invalid payment ID']);
+            }
+
+            $course_ids = json_decode($payment->course_ids, true);
+
+            $courses = DB::table('courses')->whereIn('id', $course_ids)->get();
+
+            $course_details = [];
+            $total_price = $payment->amount;
+            foreach ($courses as $course) {
+                $course_details[] = [
+                    'name' => $course->course_name,
+                    'price' => number_format($course->price, 2)
+                ];
+            }
+
+            $tax = $total_price * 0.10; // 10% tax
+            $total_after_tax = $total_price + $tax;
+            $completion_date = $payment->created_at;
+
+            $pdf = PDF::loadView('pdf.invoice', compact('course_details', 'completion_date', 'payment', 'total_price', 'tax', 'total_after_tax'))
+                ->setOption('margin-top', 0)
+                ->setOption('margin-right', 0)
+                ->setOption('margin-bottom', 0)
+                ->setOption('margin-left', 0)
+                ->setOption('dpi', 300)
+                ->setOption('enable-local-file-access', true)
+                ->setOption('no-images', false)
+                ->setOption('image-quality', 100);
+
+            $fileName = "invoice-$payment->order_id.pdf";
+            $filePath = "invoices/$fileName";
+            Storage::disk('public')->put($filePath, $pdf->output());
+
+            if (Storage::disk('public')->exists($filePath)) {
+                $tempFilePath = Storage::disk('public')->path($filePath);
+
+                if (!file_exists($tempFilePath)) {
+                    return response()->json(['result' => -1, 'msg' => 'Temporary PDF file not found.']);
+                }
+
+                $file = new UploadedFile(
+                    $tempFilePath,
+                    $fileName,
+                    'application/pdf',
+                    filesize($tempFilePath),
+                    true
+                );
+
+                $newRequest = Request::create('/upload', 'POST', [], [], ['invoice' => $file]);
+                $uploadResult = singleAwsUpload($newRequest, 'invoice', 'invoices');
+                if ($uploadResult === false) {
+                    return response()->json(['result' => -1, 'msg' => 'File upload to S3 failed.']);
+                }
+                if ($uploadResult) {
+                    update('user_payments', 'order_id', $payment->order_id, ['invoice' => $uploadResult->url]);
+                    $maildata = [
+                        'name' => "$user->first_name $user->last_name",
+                        'to' => $user->email,
+                        'msg' => "Thank you for your purchase! We truly appreciate your trust in us. Attached, you will find your invoice for Order #$payment->order_id. We hope you enjoy your purchase and look forward to serving you again in the future.",
+                        'subject' => "Invoice for Order #$payment->order_id",
+                        'view_name' => 'invoice',
+                        'payment' => $payment,
+                    ];
+                    sendMail($maildata, $tempFilePath);
+                    if (file_exists($tempFilePath)) {
+                        unlink($tempFilePath);
+                    }
+                    return true;
+                } else {
+                    return response()->json(['result' => -1, 'msg' => 'Failed to generate the pdf!']);
+                }
+            } else {
+                return response()->json(['message' => 'Failed to save the PDF!'], 500);
             }
         } catch (\Exception $e) {
             return response()->json(['result' => -5, 'msg' => $e->getMessage()]);
@@ -975,7 +1062,7 @@ class UserController extends Controller
                 ->setOption('image-quality', 100);
 
             $fileName = "certificate-$user_id-$course_id.pdf";
-            $filePath = 'certificates/' . $fileName;
+            $filePath = "certificates/$fileName";
             Storage::disk('public')->put($filePath, $pdf->output());
 
             if (Storage::disk('public')->exists($filePath)) {
@@ -1038,97 +1125,6 @@ class UserController extends Controller
             ->header('Content-Transfer-Encoding', 'binary')
             ->header('Accept-Ranges', 'bytes');
     }
-
-    public function generateInvoice($payment_id)
-    {
-            $payment = select('user_payments', '*', ['id' => $payment_id])->first();
-
-            if (!$payment) {
-                return response()->json(['result' => -1, 'msg' => 'Invalid payment ID']);
-            }
-
-            $user_id = $payment->user_id;
-            $course_ids = json_decode($payment->course_ids, true); // Decode JSON array
-
-            if (!is_array($course_ids) || empty($course_ids)) {
-                return response()->json(['result' => -1, 'msg' => 'No courses found for this payment.']);
-            }
-
-            $courses = DB::table('courses')->whereIn('id', $course_ids)->get();
-
-            $course_details = [];
-            $total_price = 0; // To store the total price
-            foreach ($courses as $course) {
-                $course_details[] = [
-                    'name' => $course->course_name,
-                    'price' => number_format($course->price, 2),
-                    'description' => $course->description ?? 'No description available',
-                ];
-                // Adding the course price to the total price
-                $total_price += $course->price;
-            }
-
-            // Calculate tax (10%)
-            $tax = $total_price * 0.10; // 10% tax
-            $total_after_tax = $total_price + $tax; // Total after tax
-
-            $student_name = $payment->first_name;
-            $completion_date = now()->format('dS F, Y');
-
-            // dd($total_price,$tax,$total_after_tax);
-
-
-            $pdf = PDF::loadView('pdf.invoice', compact('student_name', 'course_details', 'completion_date', 'payment', 'total_price', 'tax', 'total_after_tax'))
-                ->setOption('margin-top', 0)
-                ->setOption('margin-right', 0)
-                ->setOption('margin-bottom', 0)
-                ->setOption('margin-left', 0)
-                ->setOption('dpi', 300)
-                ->setOption('enable-local-file-access', true)
-                ->setOption('no-images', false)
-                ->setOption('image-quality', 100);
-
-            $fileName = "invoice-$user_id-$payment_id.pdf";
-            $tempFilePath = storage_path("app/public/invoices/{$fileName}");
-
-            // Save the PDF locally
-            Storage::disk('public')->put("invoices/{$fileName}", $pdf->output());
-
-            if (!Storage::disk('public')->exists("invoices/{$fileName}")) {
-                return response()->json(['result' => -1, 'msg' => 'Failed to generate the PDF!']);
-            }
-
-            $fileKey = 'invoice';
-            $newRequest = new Request();
-            $newRequest->files->set($fileKey, new UploadedFile(
-                $tempFilePath,
-                $fileName,
-                'application/pdf',
-                filesize($tempFilePath),
-                true
-            ));
-
-            $uploadResult = singleAwsUpload($newRequest, $fileKey, 'invoices');
-
-            if (!$uploadResult || !isset($uploadResult->url)) {
-                return response()->json(['result' => -1, 'msg' => 'File upload to S3 failed.']);
-            }
-
-            $invoiceUrl = $uploadResult->url;
-
-            // dd($invoiceUrl);
-            update('user_payments', 'id', $payment_id,['invoice_file' => $invoiceUrl] );
-            if (file_exists($tempFilePath)) {
-                unlink($tempFilePath);
-            }
-
-            return response()->json(['result'=>1, 'msg'=>"Invoice Generated and uploaded", 'data'=>$invoiceUrl]);
-
-    }
-
-
-
-
 
     public function logout(Request $request)
     {
